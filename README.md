@@ -45,8 +45,8 @@ pnpm dev
 
 ## 🗄️ Supabase Setup for Local Testing
 
-If you are testing this locally and your testing Supabase database is empty, the app will fail with errors such as `Could not find the table 'public.profile' in the schema cache`.
-⚠️ **NOTE:** The provided SQL script is not meant for the production environment, only local testing. It is destructive.
+If you are testing locally and your Supabase database is empty, the app will fail with errors such as `Could not find the table 'public.profile' in the schema cache`.
+> ⚠️ **WARNING:** The provided SQL script is not meant for the production environment, only local testing. It is destructive.
 
 1. Copy `.env.local.example` to `.env.local`.
 2. Fill in your Supabase project values:
