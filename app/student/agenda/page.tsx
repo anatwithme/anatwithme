@@ -72,22 +72,17 @@ export default async function StudentAgendaPage({
     .eq("user_id", user.id)
     .single();
 
-  if (!membership) {
-    return (
-      <AgendaEmptyShell>
-        <EmptyState
-          title="No agenda yet"
-          description="You haven't been assigned to a group, so there's no agenda to show. Check back after groups are created."
-        />
-      </AgendaEmptyShell>
-    );
+  // If the user is a member of a group, fetch group members. Otherwise
+  // continue and allow the student to view agendas without being grouped.
+  let membersData: GroupMember[] | null = [];
+  let membersError: any = null;
+  if (membership) {
+    const membersRes = await supabase.rpc("get_my_group_members");
+    membersData = membersRes.data;
+    membersError = membersRes.error;
   }
 
-  const { data: membersData, error: membersError } = await supabase.rpc(
-    "get_my_group_members",
-  );
-
-  if (membersError) {
+  if (membersError && membership) {
     return (
       <AgendaEmptyShell>
         <ErrorState message="There was a problem loading your group members. Please try again." />
@@ -226,6 +221,7 @@ export default async function StudentAgendaPage({
         completedTaskIds={completedTaskIdsForSelectedAgenda}
         studentProgressPercent={selectedSummary.studentProgressPercent}
         groupProgressPercent={selectedSummary.groupProgressPercent}
+        hasGroup={Boolean(membership)}
       />
     </div>
   );

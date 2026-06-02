@@ -5,7 +5,7 @@
 // Clicking a cell toggles it and immediately saves to the DB
 // Selected (red) = available, unselected = not available
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -46,11 +46,42 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
 
   // build a lookup so we can find a slot by (day, slotPosition) quickly
   // key = "day-slotPosition", value = slot id
-  const slotLookup: Record<string, number> = {};
-  timeSlots.forEach((slot) => {
-    const positionInDay = slot.slot_index - slot.day * 16;
-    slotLookup[`${slot.day}-${positionInDay}`] = slot.id;
-  });
+  const slotLookup = useMemo(() => {
+    const lookup: Record<string, number> = {};
+    timeSlots.forEach((slot) => {
+      const slotIndex = Number(slot.slot_index);
+      let dayIndex = Number(slot.day);
+      if (dayIndex >= 1 && dayIndex <= 7) {
+        dayIndex -= 1;
+      }
+
+      let positionInDay = slotIndex - dayIndex * 16;
+
+      if (positionInDay < 0 || positionInDay > 15) {
+        if (slotIndex >= 0 && slotIndex < 112) {
+          dayIndex = Math.floor(slotIndex / 16);
+          positionInDay = slotIndex % 16;
+        } else if (slotIndex >= 1 && slotIndex <= 112) {
+          const normalizedIndex = slotIndex - 1;
+          dayIndex = Math.floor(normalizedIndex / 16);
+          positionInDay = normalizedIndex % 16;
+        } else if (slotIndex >= 0 && slotIndex < 16) {
+          positionInDay = slotIndex;
+        }
+      }
+
+      if (dayIndex >= 0 && dayIndex < 7 && positionInDay >= 0 && positionInDay < 16) {
+        lookup[`${dayIndex}-${positionInDay}`] = slot.id;
+      } else {
+        console.warn(
+          "AvailabilityGrid: unable to map time slot",
+          slot,
+          { dayIndex, positionInDay },
+        );
+      }
+    });
+    return lookup;
+  }, [timeSlots]);
 
   const handleCellClick = (day: number, slotPosition: number) => {
     const slotId = slotLookup[`${day}-${slotPosition}`];
@@ -125,6 +156,7 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
               return (
                 <button
                   key={day}
+                  type="button"
                   onClick={() => handleCellClick(day, slotPosition)}
                   className={cn(
                     "h-8 border border-border transition-colors",

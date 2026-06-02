@@ -62,6 +62,7 @@ type Props = {
   completedTaskIds: number[];
   studentProgressPercent: number;
   groupProgressPercent: number;
+  hasGroup?: boolean;
 };
 
 const LAST_AGENDA_STORAGE_KEY = "student_last_agenda_id";
@@ -113,6 +114,7 @@ export default function StudentAgendaBoard({
   completedTaskIds,
   studentProgressPercent,
   groupProgressPercent,
+  hasGroup = false,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -431,7 +433,9 @@ export default function StudentAgendaBoard({
 
             <div className="mt-8 space-y-6">
               <ProgressBar label="Your Progress" percent={studentProgressPercent} />
-              <ProgressBar label="Group Progress" percent={groupProgressPercent} />
+              {hasGroup ? (
+                <ProgressBar label="Group Progress" percent={groupProgressPercent} />
+              ) : null}
             </div>
 
             <div className="mt-auto pt-8">
