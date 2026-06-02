@@ -6,7 +6,7 @@ grant all on schema public to postgres, service_role;
 
 create extension if not exists pgcrypto with schema public;
 
-create type public.role as enum ('student', 'admin');
+create type public.role as enum ('student', 'admin', 'owner');
 create type public.section_type as enum ('solo', 'group');
 
 create table public.profile (
@@ -144,6 +144,19 @@ create table public.task_completion (
 create index task_completion_task_id_idx on public.task_completion(task_id);
 create index task_completion_user_id_idx on public.task_completion(user_id);
 
+create or replace function public.is_owner()
+returns boolean
+language sql
+security definer
+set search_path to 'public'
+as $$
+  select exists (
+    select 1 from public.profile
+    where user_id = (select auth.uid())
+      and role = 'owner'
+  );
+$$;
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -153,7 +166,7 @@ as $$
   select exists (
     select 1 from public.profile
     where user_id = (select auth.uid())
-      and role = 'admin'
+      and role in ('admin', 'owner')
   );
 $$;
 
@@ -204,23 +217,43 @@ security definer
 set search_path to 'public'
 as $$
 begin
-  if public.is_admin() then
-    return new;
+  -- Only owners can change roles
+  if new.role is distinct from old.role
+     and not public.is_owner() then
+    raise exception 'Only owners may change roles';
   end if;
 
-  if new.email is distinct from old.email then
-    raise exception 'Not allowed to update email';
-  end if;
-
-  if new.role is distinct from old.role then
-    raise exception 'Not allowed to update role';
-  end if;
-
+  -- Only owners can change user IDs
   if new.user_id is distinct from old.user_id then
     raise exception 'Not allowed to update user_id';
   end if;
 
+  -- Nobody manually changes email
+  if new.email is distinct from old.email then
+    raise exception 'Not allowed to update email';
+  end if;
+
   return new;
+end;
+$$;
+
+create or replace function public.set_user_role(
+    target_user uuid,
+    new_role public.role
+)
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+begin
+    if not public.is_owner() then
+        raise exception 'Only owners may modify roles';
+    end if;
+
+    update public.profile
+    set role = new_role
+    where user_id = target_user;
 end;
 $$;
 
