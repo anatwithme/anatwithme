@@ -52,6 +52,7 @@ If you are testing locally and your Supabase database is empty, the app will fai
 2. Fill in your Supabase project values:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
 3. Open the Supabase SQL editor for your project.
 4. Run `supabase-schema.sql` from the repo root to create the required tables and seed time slots.
 5. In your Supabase project, go to "Authentication" -> "Sign In / Providers" -> "User Signups" and Disable `Confirm email` if not already disabled.
