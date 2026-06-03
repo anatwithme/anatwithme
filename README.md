@@ -41,7 +41,23 @@ pnpm dev
 3. Open your browser and go to:
 👉 [http://localhost:3000](http://localhost:3000)
 
-4. Once deployed, go to [https://anatwithme.org/](https://anatwithme.org/) 
+4. Once deployed, go to [https://anatwithme.org/](https://anatwithme.org/)
+
+## 🗄️ Supabase Setup for Local Testing
+
+If you are testing locally and your Supabase database is empty, the app will fail with errors such as `Could not find the table 'public.profile' in the schema cache`.
+> ⚠️ **WARNING:** The provided SQL script is not meant for the production environment, only local testing. It is destructive.
+
+1. Copy `.env.local.example` to `.env.local`.
+2. Fill in your Supabase project values:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+3. Open the Supabase SQL editor for your project.
+4. Run `supabase-schema.sql` from the repo root to create the required tables and seed time slots.
+5. In your Supabase project, go to "Authentication" -> "Sign In / Providers" -> "User Signups" and Disable `Confirm email` if not already disabled.
+
+This project does not auto-create the database schema on first run, so the SQL file is required for a fresh Supabase project. 
 
 ## 🧱 Project Structure
 - app/page.tsx        # Main landing page
