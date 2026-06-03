@@ -127,7 +127,7 @@ function formatGroupLabel(group: Group | null) {
   return `${meeting} • ${preference}`;
 }
 
-export function RosterTable({ students }: { students: Student[] }) {
+export function StudentRosterTable({ students }: { students: Student[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [removingStudentId, setRemovingStudentId] = useState<string | null>(
