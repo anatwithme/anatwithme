@@ -41,14 +41,10 @@ export function LoginForm({
 
       const user = data?.user;
       // Query the user's role to redirect to the correct dashboard
-      const { data: profile, error: profileError } = await supabase
-        .from("profile")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+      const { data: isAdmin, error: profileError } = await supabase.rpc("is_admin");
       if (profileError) throw profileError;
 
-      const dashboard = profile?.role === "admin" ? "/admin" : "/student";
+      const dashboard = isAdmin ? "/admin" : "/student";
       router.push(dashboard);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");

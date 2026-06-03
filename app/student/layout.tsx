@@ -14,12 +14,8 @@ export default async function StudentLayout({
   const user = data?.claims;
   let isAdmin = false;
   if (user?.sub) {
-    const { data: profile } = await supabase
-      .from("profile")
-      .select("role")
-      .eq("user_id", user.sub)
-      .single();
-    isAdmin = profile?.role === "admin";
+    const { data: isAdministrator } = await supabase.rpc("is_admin");
+    isAdmin = isAdministrator;
   }
 
   return (
