@@ -70,7 +70,7 @@ export default async function RosterPage() {
     <div className="w-full max-w-7xl space-y-8">
       <div className="space-y-2">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-xl font-semibold">Student Roster</h1>
+          <h1 className="text-xl font-semibold">Students</h1>
           <p className="text-muted-foreground text-sm">
             {studentRoster.length} {studentRoster.length === 1 ? "student" : "students"}{" "}
             registered
