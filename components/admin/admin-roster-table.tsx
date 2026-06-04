@@ -204,18 +204,20 @@ export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner
                           View Availability
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem
-                          variant="destructive"
-                          disabled={isPending}
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            setPendingRemovalAdmin(admin);
-                          }}
-                        >
-                          {isPending && removingAdminId === admin.user_id
-                            ? "Demoting..."
-                            : "Demote Admin"}
-                        </DropdownMenuItem>
+                        {isOwner && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={isPending}
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              setPendingRemovalAdmin(admin);
+                            }}
+                          >
+                            {isPending && removingAdminId === admin.user_id
+                              ? "Demoting..."
+                              : "Demote Admin"}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
