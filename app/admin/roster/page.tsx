@@ -78,7 +78,7 @@ export default async function RosterPage() {
             registered
           </p>
         </div>
-        <AdminRosterTable admins={adminRoster} />
+        <AdminRosterTable admins={adminRoster} isOwner={!!isOwner} />
       </div>
     </div>
   );

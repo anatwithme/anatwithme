@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,15 +41,24 @@ function getInitials(name: string | null) {
     .join("");
 }
 
-export function AdminRosterTable({ admins }: { admins: Admin[] }) {
+function getRoleLabel(role: string) {
+  return role === "owner" ? "Owner" : "Admin";
+}
+
+function getRoleFormat(role: string) {
+  return role === "owner"
+    ? "rounded-full bg-red-900/20 px-2 py-1 text-xs font-medium text-red-800"
+    : "rounded-full bg-red-600/20 px-2 py-1 text-xs font-medium text-red-600";
+}
+
+export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner: boolean; }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [removingAdminId, setRemovingAdminId] = useState<string | null>(
-    null,
-  );
   const [actionError, setActionError] = useState<string | null>(null);
-  const [pendingRemovalAdmin, setPendingRemovalAdmin] =
-    useState<Admin | null>(null);
+  const [pendingRemovalAdmin, setPendingRemovalAdmin] = useState<Admin | null>(null);
+  const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
+
+  const isRemovingSelected = removingAdminId === pendingRemovalAdmin?.user_id;
 
   const handleRemoveAdmin = (adminId: string) => {
     setActionError(null);
@@ -57,6 +67,7 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
     startTransition(async () => {
       try {
         await removeAdmin(adminId);
+        setPendingRemovalAdmin(null);
         router.refresh();
       } catch (error) {
         setActionError(
@@ -70,73 +81,28 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
 
   return (
     <>
-      {pendingRemovalAdmin && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Remove admin"
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col rounded-lg border bg-background shadow-xl"
-          >
-            <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Remove admin?</h2>
-                <p className="text-muted-foreground text-sm">
-                  This will make the user a standard student.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setPendingRemovalAdmin(null)}
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </div>
-
-            <div className="space-y-4 px-5 py-4">
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <p className="font-medium">
-                  {pendingRemovalAdmin.full_name ?? "No name provided"}
-                </p>
-                <p className="text-muted-foreground">
-                  {pendingRemovalAdmin.email}
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={removingAdminId === pendingRemovalAdmin.user_id}
-                  onClick={() => setPendingRemovalAdmin(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={removingAdminId === pendingRemovalAdmin.user_id}
-                  onClick={async () => {
-                    handleRemoveAdmin(pendingRemovalAdmin.user_id);
-                    setPendingRemovalAdmin((current) =>
-                      current?.user_id === pendingRemovalAdmin.user_id
-                        ? null
-                        : current,
-                    );
-                  }}
-                >
-                  {removingAdminId === pendingRemovalAdmin.user_id
-                    ? "Removing..."
-                    : "Remove admin"}
-                </Button>
-              </div>
-            </div>
-          </div>
+      <ConfirmDialog
+        open={!!pendingRemovalAdmin}
+        title="Demote Admin?"
+        description="This will change the selected admin back into a standard student."
+        confirmText={isRemovingSelected ? "Demoting..." : "Demote Admin"}
+        destructive
+        disabled={isRemovingSelected}
+        onCancel={() => setPendingRemovalAdmin(null)}
+        onConfirm={() => {
+          if (!pendingRemovalAdmin) return;
+          handleRemoveAdmin(pendingRemovalAdmin.user_id);
+        }}
+      >
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <p className="font-medium">
+            {pendingRemovalAdmin?.full_name ?? "No name provided"}
+          </p>
+          <p className="text-muted-foreground">
+            {pendingRemovalAdmin?.email}
+          </p>
         </div>
-      )}
+      </ConfirmDialog>
 
       <div className="border">
         <Table>
@@ -151,6 +117,7 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
               </TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {actionError ? (
               <TableRow>
@@ -162,6 +129,7 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                 </TableCell>
               </TableRow>
             ) : null}
+
             {admins.length === 0 ? (
               <TableRow>
                 <TableCell
@@ -190,6 +158,7 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                           <span>{getInitials(admin.full_name)}</span>
                         )}
                       </div>
+
                       <span
                         className={
                           admin.full_name
@@ -201,15 +170,21 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                       </span>
                     </div>
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {admin.email}
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {admin.phone ?? "No phone number"}
                   </TableCell>
+
                   <TableCell>
-                    {admin.role === "owner" ? "Owner" : "Admin"}
+                    <span className={getRoleFormat(admin.role)}>
+                      {getRoleLabel(admin.role)}
+                    </span>
                   </TableCell>
+
                   <TableCell className="px-4 text-right">
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -223,10 +198,12 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                           <span className="sr-only">Open row actions</span>
                         </Button>
                       </DropdownMenuTrigger>
+
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem disabled>
                           View Availability
                         </DropdownMenuItem>
+
                         <DropdownMenuItem
                           variant="destructive"
                           disabled={isPending}
@@ -236,8 +213,8 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                           }}
                         >
                           {isPending && removingAdminId === admin.user_id
-                            ? "Removing..."
-                            : "Remove admin"}
+                            ? "Demoting..."
+                            : "Demote admin"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
