@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { removeStudent } from "@/lib/actions/admin-actions";
+import { removeAdmin } from "@/lib/actions/admin-actions";
 
 type Admin = {
   user_id: string;
@@ -43,54 +43,53 @@ function getInitials(name: string | null) {
 export function AdminRosterTable({ admins }: { admins: Admin[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [removingStudentId, setRemovingStudentId] = useState<string | null>(
+  const [removingAdminId, setRemovingAdminId] = useState<string | null>(
     null,
   );
   const [actionError, setActionError] = useState<string | null>(null);
-  const [pendingRemovalStudent, setPendingRemovalStudent] =
+  const [pendingRemovalAdmin, setPendingRemovalAdmin] =
     useState<Admin | null>(null);
 
-  const handleRemoveStudent = (studentId: string) => {
+  const handleRemoveAdmin = (adminId: string) => {
     setActionError(null);
-    setRemovingStudentId(studentId);
+    setRemovingAdminId(adminId);
 
     startTransition(async () => {
       try {
-        await removeStudent(studentId);
+        await removeAdmin(adminId);
         router.refresh();
       } catch (error) {
         setActionError(
-          error instanceof Error ? error.message : "Failed to remove student.",
+          error instanceof Error ? error.message : "Failed to remove admin.",
         );
       } finally {
-        setRemovingStudentId(null);
+        setRemovingAdminId(null);
       }
     });
   };
 
   return (
     <>
-      {pendingRemovalStudent && (
+      {pendingRemovalAdmin && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Remove student"
+            aria-label="Remove admin"
             className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col rounded-lg border bg-background shadow-xl"
           >
             <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Remove student?</h2>
+                <h2 className="text-lg font-semibold">Remove admin?</h2>
                 <p className="text-muted-foreground text-sm">
-                  This will permanently remove the student from the roster and
-                  cannot be undone.
+                  This will make the user a standard student.
                 </p>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => setPendingRemovalStudent(null)}
+                onClick={() => setPendingRemovalAdmin(null)}
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
@@ -100,10 +99,10 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
             <div className="space-y-4 px-5 py-4">
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
                 <p className="font-medium">
-                  {pendingRemovalStudent.full_name ?? "No name provided"}
+                  {pendingRemovalAdmin.full_name ?? "No name provided"}
                 </p>
                 <p className="text-muted-foreground">
-                  {pendingRemovalStudent.email}
+                  {pendingRemovalAdmin.email}
                 </p>
               </div>
 
@@ -111,27 +110,27 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                 <Button
                   type="button"
                   variant="ghost"
-                  disabled={removingStudentId === pendingRemovalStudent.user_id}
-                  onClick={() => setPendingRemovalStudent(null)}
+                  disabled={removingAdminId === pendingRemovalAdmin.user_id}
+                  onClick={() => setPendingRemovalAdmin(null)}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
                   variant="destructive"
-                  disabled={removingStudentId === pendingRemovalStudent.user_id}
+                  disabled={removingAdminId === pendingRemovalAdmin.user_id}
                   onClick={async () => {
-                    await handleRemoveStudent(pendingRemovalStudent.user_id);
-                    setPendingRemovalStudent((current) =>
-                      current?.user_id === pendingRemovalStudent.user_id
+                    handleRemoveAdmin(pendingRemovalAdmin.user_id);
+                    setPendingRemovalAdmin((current) =>
+                      current?.user_id === pendingRemovalAdmin.user_id
                         ? null
                         : current,
                     );
                   }}
                 >
-                  {removingStudentId === pendingRemovalStudent.user_id
+                  {removingAdminId === pendingRemovalAdmin.user_id
                     ? "Removing..."
-                    : "Remove student"}
+                    : "Remove admin"}
                 </Button>
               </div>
             </div>
@@ -233,12 +232,12 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                           disabled={isPending}
                           onSelect={(event) => {
                             event.preventDefault();
-                            setPendingRemovalStudent(admin);
+                            setPendingRemovalAdmin(admin);
                           }}
                         >
-                          {isPending && removingStudentId === admin.user_id
+                          {isPending && removingAdminId === admin.user_id
                             ? "Removing..."
-                            : "Remove student"}
+                            : "Remove admin"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

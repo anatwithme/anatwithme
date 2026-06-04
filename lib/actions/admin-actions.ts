@@ -297,6 +297,21 @@ export async function removeStudent(studentId: string) {
   revalidatePath("/admin/roster");
 }
 
+export async function removeAdmin(adminId: string) {
+  const supabase = await createClient();
+
+  const { error: callError } = await supabase.rpc("set_user_role", {
+    target_user: adminId,
+    new_role: "student"
+  });
+
+  if (callError) {
+    throw new Error(`ERROR: Removing administrator resulted in the following error - ${callError?.message ?? "Unknown Error"}`);
+  }
+
+  revalidatePath("/admin/roster");
+}
+
 export async function deleteGroup(groupId: string) {
   const supabase = await createClient();
 
