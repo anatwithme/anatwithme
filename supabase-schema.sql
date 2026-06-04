@@ -237,23 +237,42 @@ begin
 end;
 $$;
 
+-- Allows owners to promote students to admins and demote admins to students.
 create or replace function public.set_user_role(
-    target_user uuid,
-    new_role public.role
+  target_user uuid,
+  new_role public.role
 )
 returns void
 language plpgsql
 security definer
 set search_path to 'public'
 as $$
+declare
+  target_role public.role;
 begin
-    if not public.is_owner() then
-        raise exception 'Only owners may modify roles';
-    end if;
+  -- Only owners may change roles
+  if not public.is_owner() then
+    raise exception 'Owner only';
+  end if;
 
-    update public.profile
-    set role = new_role
-    where user_id = target_user;
+  -- Verify target exists and get current role
+  select role
+  into target_role
+  from public.profile
+  where user_id = target_user;
+
+  if target_role is null then
+    raise exception 'User not found';
+  end if;
+
+  -- Prevent owners from demoting themselves
+  if target_user = auth.uid() then
+    raise exception 'Cannot change your own role';
+  end if;
+
+  update public.profile
+  set role = new_role
+  where user_id = target_user;
 end;
 $$;
 

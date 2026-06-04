@@ -53,18 +53,13 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect logged-in users away from auth pages
   if (user) {
-    const { data: profile, error: profileError } = await supabase
-      .from("profile")
-      .select("*")
-      .eq("user_id", user.sub)
-      .single();
+    const { data: isAdmin, error: profileError } = await supabase.rpc("is_admin");
 
     if (profileError) {
       console.error("Failed to fetch profile:", profileError.message);
     }
 
-    const role = profile?.role ?? "student";
-    const dashboard = role === "admin" ? "/admin" : "/student";
+    const dashboard = isAdmin ? "/admin" : "/student";
 
     if (pathname.startsWith("/login") || pathname.startsWith("/sign-up")) {
       const url = request.nextUrl.clone();
@@ -73,7 +68,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Block students from accessing /admin
-    if (role !== "admin" && pathname.startsWith("/admin")) {
+    if (!isAdmin && pathname.startsWith("/admin")) {
       const url = request.nextUrl.clone();
       url.pathname = "/student";
       return NextResponse.redirect(url);

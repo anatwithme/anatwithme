@@ -1,10 +1,11 @@
 "use client";
 
-import { MoreHorizontal, X } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { removeStudent } from "@/lib/actions/admin-actions";
+import { removeStudent, promoteStudent } from "@/lib/actions/admin-actions";
 
 const DAY_NAMES = [
   "Monday",
@@ -127,104 +128,102 @@ function formatGroupLabel(group: Group | null) {
   return `${meeting} • ${preference}`;
 }
 
-export function RosterTable({ students }: { students: Student[] }) {
+export function StudentRosterTable({ students, isOwner }: { students: Student[]; isOwner: boolean; }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [removingStudentId, setRemovingStudentId] = useState<string | null>(
-    null,
-  );
   const [actionError, setActionError] = useState<string | null>(null);
-  const [pendingRemovalStudent, setPendingRemovalStudent] =
-    useState<Student | null>(null);
+  const [pendingRemovalStudent, setPendingRemovalStudent] = useState<Student | null>(null);
+  const [pendingPromotionStudent, setPendingPromotionStudent] = useState<Student | null>(null);
+
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
 
   const handleRemoveStudent = (studentId: string) => {
     setActionError(null);
-    setRemovingStudentId(studentId);
+    setActiveStudentId(studentId);
 
     startTransition(async () => {
       try {
         await removeStudent(studentId);
+        setPendingRemovalStudent(null);
         router.refresh();
       } catch (error) {
         setActionError(
           error instanceof Error ? error.message : "Failed to remove student.",
         );
       } finally {
-        setRemovingStudentId(null);
+        setActiveStudentId(null);
       }
     });
   };
 
+  const handlePromoteStudent = (studentId: string) => {
+    setActionError(null);
+    setActiveStudentId(studentId);
+
+    startTransition(async () => {
+      try {
+        await promoteStudent(studentId);
+        setPendingPromotionStudent(null);
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to promote student.",
+        );
+      } finally {
+        setActiveStudentId(null);
+      }
+    })
+  }
+
+  const isRemovingSelected = activeStudentId === pendingRemovalStudent?.user_id;
+  const isPromotingSelected = activeStudentId === pendingPromotionStudent?.user_id;
+
   return (
     <>
-      {pendingRemovalStudent && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Remove student"
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col rounded-lg border bg-background shadow-xl"
-          >
-            <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Remove student?</h2>
-                <p className="text-muted-foreground text-sm">
-                  This will permanently remove the student from the roster and
-                  cannot be undone.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setPendingRemovalStudent(null)}
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </div>
-
-            <div className="space-y-4 px-5 py-4">
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <p className="font-medium">
-                  {pendingRemovalStudent.full_name ?? "No name provided"}
-                </p>
-                <p className="text-muted-foreground">
-                  {pendingRemovalStudent.email}
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={removingStudentId === pendingRemovalStudent.user_id}
-                  onClick={() => setPendingRemovalStudent(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={removingStudentId === pendingRemovalStudent.user_id}
-                  onClick={async () => {
-                    await handleRemoveStudent(pendingRemovalStudent.user_id);
-                    setPendingRemovalStudent((current) =>
-                      current?.user_id === pendingRemovalStudent.user_id
-                        ? null
-                        : current,
-                    );
-                  }}
-                >
-                  {removingStudentId === pendingRemovalStudent.user_id
-                    ? "Removing..."
-                    : "Remove student"}
-                </Button>
-              </div>
-            </div>
-          </div>
+      <ConfirmDialog
+        open={!!pendingRemovalStudent}
+        title="Remove Student"
+        description="This will permanently remove the student from the roster and cannot be undone."
+        confirmText={isRemovingSelected ? "Removing..." : "Remove student"}
+        destructive
+        disabled={isRemovingSelected}
+        onCancel={() => setPendingRemovalStudent(null)}
+        onConfirm={() => {
+          if (!pendingRemovalStudent) return;
+          handleRemoveStudent(pendingRemovalStudent.user_id);
+        }}
+      >
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <p className="font-medium">
+            {pendingRemovalStudent?.full_name ?? "No name provided"}
+          </p>
+          <p className="text-muted-foreground">
+            {pendingRemovalStudent?.email}
+          </p>
         </div>
-      )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!pendingPromotionStudent}
+        title="Promote to Admin?"
+        description="This will promote the selected student to an admin."
+        confirmText={isPromotingSelected ? "Promoting..." : "Promote to Admin"}
+        disabled={isPromotingSelected}
+        onCancel={() => setPendingPromotionStudent(null)}
+        onConfirm={() => {
+          if (!pendingPromotionStudent) return;
+          handlePromoteStudent(pendingPromotionStudent.user_id);
+        }}
+      >
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <p className="fontMedium">
+            {pendingPromotionStudent?.full_name ?? "No name provided"}
+          </p>
+          <p className="text-muted-foreground">
+            {pendingPromotionStudent?.email}
+          </p>
+        </div>
+      </ConfirmDialog>
 
       <div className="border">
         <Table>
@@ -291,23 +290,29 @@ export function RosterTable({ students }: { students: Student[] }) {
                       </span>
                     </div>
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {student.email}
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {student.phone ?? "No phone number"}
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {formatGroupLabel(getAssignedGroup(student))}
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {formatStudyMode(student.study_mode)}
                   </TableCell>
+
                   <TableCell className="px-4 text-muted-foreground">
                     {student.study_mode === "independent"
                       ? "Not applicable"
                       : formatMeetingPreference(student.preference)}
                   </TableCell>
+
                   <TableCell className="px-4 text-right">
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -321,11 +326,28 @@ export function RosterTable({ students }: { students: Student[] }) {
                           <span className="sr-only">Open row actions</span>
                         </Button>
                       </DropdownMenuTrigger>
+
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem disabled>
                           View Availability
                         </DropdownMenuItem>
+
                         <DropdownMenuItem disabled>View Group</DropdownMenuItem>
+
+                        {isOwner && (
+                          <DropdownMenuItem 
+                            className="text-blue-500 focus:text-blue-500"
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              setPendingPromotionStudent(student);
+                            }}
+                          >
+                            {isPending && activeStudentId === student.user_id 
+                              ? "Promoting..." 
+                              : "Promote to Admin"}
+                          </DropdownMenuItem>
+                        )}
+
                         <DropdownMenuItem
                           variant="destructive"
                           disabled={isPending}
@@ -334,7 +356,7 @@ export function RosterTable({ students }: { students: Student[] }) {
                             setPendingRemovalStudent(student);
                           }}
                         >
-                          {isPending && removingStudentId === student.user_id
+                          {isPending && activeStudentId === student.user_id
                             ? "Removing..."
                             : "Remove student"}
                         </DropdownMenuItem>

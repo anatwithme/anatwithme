@@ -148,18 +148,14 @@ async function requireAdmin(supabase: SupabaseClient) {
     return { error: "Not logged in" } as const;
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profile")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+  const { data: isAdmin, error: profileError } = await supabase.rpc("is_admin");
 
   if (profileError) {
     console.error("Error loading caller profile:", profileError);
     return { error: "Failed to verify admin access" } as const;
   }
 
-  if (profile?.role !== "admin") {
+  if (isAdmin) {
     return { error: "Admin only" } as const;
   }
 
@@ -266,13 +262,9 @@ export async function removeStudent(studentId: string) {
     throw new Error("Not logged in");
   }
 
-  const { data: callerProfile, error: callerProfileError } = await supabase
-    .from("profile")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+  const { data: isAdmin, error: callerProfileError } = await supabase.rpc("is_admin");
 
-  if (callerProfileError || callerProfile?.role !== "admin") {
+  if (callerProfileError || !isAdmin) {
     throw new Error("Admin only");
   }
 
@@ -300,6 +292,36 @@ export async function removeStudent(studentId: string) {
   if (error) {
     console.error("Failed to remove student:", error.message);
     throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/roster");
+}
+
+export async function promoteStudent(studentId: string) {
+  const supabase = await createClient();
+
+  const { error: callError } = await supabase.rpc("set_user_role", {
+    target_user: studentId,
+    new_role: "admin"
+  });
+
+  if (callError) {
+    throw new Error(`ERROR: Promoting student resulted in the following error - ${callError?.message ?? "Unknown Error"}`);
+  }
+
+  revalidatePath("/admin/roster");
+}
+
+export async function removeAdmin(adminId: string) {
+  const supabase = await createClient();
+
+  const { error: callError } = await supabase.rpc("set_user_role", {
+    target_user: adminId,
+    new_role: "student"
+  });
+
+  if (callError) {
+    throw new Error(`ERROR: Removing administrator resulted in the following error - ${callError?.message ?? "Unknown Error"}`);
   }
 
   revalidatePath("/admin/roster");

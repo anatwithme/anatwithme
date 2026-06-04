@@ -154,17 +154,13 @@ async function requireAdminAccess() {
     throw new Error("Not logged in");
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profile")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+  const { data: isAdmin, error: profileError } = await supabase.rpc("is_admin");
 
   if (profileError) {
     throw new Error("Failed to verify admin access");
   }
 
-  if (profile?.role !== "admin") {
+  if (!isAdmin) {
     throw new Error("Admin only");
   }
 
