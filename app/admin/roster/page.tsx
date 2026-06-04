@@ -5,6 +5,8 @@ import { AdminRosterTable } from "@/components/admin/admin-roster-table";
 export default async function RosterPage() {
   const supabase = await createClient();
 
+  const { data: isOwner } = await supabase.rpc("is_owner");
+
   const { data: students, error: studentProfilesError } = await supabase
     .from("profile")
     .select(
@@ -65,7 +67,7 @@ export default async function RosterPage() {
             registered
           </p>
         </div>
-        <StudentRosterTable students={studentRoster} />
+        <StudentRosterTable students={studentRoster} isOwner={!!isOwner} />
       </div>
 
       <div className="space-y-2">
