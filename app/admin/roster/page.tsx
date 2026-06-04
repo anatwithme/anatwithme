@@ -43,18 +43,7 @@ export default async function RosterPage() {
       role,
       email,
       phone,
-      preference,
-      study_mode,
-      profile_picture_url,
-      member_of (
-        group (
-          id,
-          preference,
-          day_of_week,
-          meet_start_time,
-          meet_end_time
-        )
-      )
+      profile_picture_url
     `,
     )
     .in("role", ["admin", "owner"]);

@@ -169,7 +169,7 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                   colSpan={7}
                   className="p-4 text-center text-muted-foreground"
                 >
-                  No students found.
+                  No admins found.
                 </TableCell>
               </TableRow>
             ) : (
@@ -207,6 +207,9 @@ export function AdminRosterTable({ admins }: { admins: Admin[] }) {
                   </TableCell>
                   <TableCell className="px-4 text-muted-foreground">
                     {admin.phone ?? "No phone number"}
+                  </TableCell>
+                  <TableCell>
+                    {admin.role === "owner" ? "Owner" : "Admin"}
                   </TableCell>
                   <TableCell className="px-4 text-right">
                     <DropdownMenu modal={false}>
