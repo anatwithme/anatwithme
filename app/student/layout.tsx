@@ -3,6 +3,7 @@ import { StudentNavbar } from "@/components/student/student-navbar";
 import { AppBrand } from "@/components/layout/app-brand";
 import { createClient } from "@/lib/supabase/server";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 export default async function StudentLayout({
   children,
@@ -12,11 +13,23 @@ export default async function StudentLayout({
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
-  let isAdmin = false;
-  if (user?.sub) {
-    const { data: isAdministrator } = await supabase.rpc("is_admin");
-    isAdmin = isAdministrator;
+
+  
+  if (!user?.sub) {
+    redirect("/login");
   }
+
+  let isAdmin = false;
+  let consentStatus = "pending";
+
+  const { data: profile } = await supabase.from("profile").select("role, consent_status").eq("user_id", user.sub).maybeSingle();
+
+  isAdmin = profile?.role === "admin";
+  consentStatus = profile?.consent_status ?? "pending";
+
+  if (consentStatus === "pending") {
+  redirect("/consent");
+}
 
   return (
     <main className="min-h-screen flex flex-col">
