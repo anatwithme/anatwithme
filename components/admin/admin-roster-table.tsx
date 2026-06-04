@@ -48,7 +48,7 @@ function getRoleLabel(role: string) {
 function getRoleFormat(role: string) {
   return role === "owner"
     ? "rounded-full bg-red-900/20 px-2 py-1 text-xs font-medium text-red-800"
-    : "rounded-full bg-red-600/20 px-2 py-1 text-xs font-medium text-red-600";
+    : "rounded-full bg-blue-700/20 px-2 py-1 text-xs font-medium text-blue-600";
 }
 
 export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner: boolean; }) {
@@ -214,7 +214,7 @@ export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner
                         >
                           {isPending && removingAdminId === admin.user_id
                             ? "Demoting..."
-                            : "Demote admin"}
+                            : "Demote Admin"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
