@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { group } from "console";
 
 type StudentPreference = "in_person" | "online" | "no_preference";
 type StudyMode = "group" | "independent";
@@ -15,6 +16,7 @@ type UpdatedProfile = {
   study_mode: StudyMode;
   profile_picture_url: string | null;
   bio: string | null;
+  group_study_agreement_accepted: boolean;
 };
 
 function isStudentPreference(value: string): value is StudentPreference {
@@ -46,6 +48,7 @@ export async function updateStudentProfile(
   const bio = String(formData.get("bio") ?? "").trim();
   const preference = String(formData.get("preference") ?? "no_preference");
   const studyMode = String(formData.get("study_mode") ?? "group");
+  const groupStudyAgreementAccepted = String(formData.get("group_study_agreement_accepted") ?? "false") === "true";
 
   if (!isStudentPreference(preference)) {
     return { ok: false, error: "Invalid preference value." };
@@ -53,6 +56,10 @@ export async function updateStudentProfile(
 
   if (!isStudyMode(studyMode)) {
     return { ok: false, error: "Invalid study mode value." };
+  }
+
+  if ((studyMode === "group") && !groupStudyAgreementAccepted) {
+    return { ok: false, error: "You must accept the group study agreement to select Group Study mode." };
   }
 
   const phone = phoneRaw.replace(/\D/g, "");
@@ -126,6 +133,7 @@ export async function updateStudentProfile(
     preference: StudentPreference;
     study_mode: StudyMode;
     bio: string | null;
+    group_study_agreement_accepted: boolean;
     profile_picture_url?: string | null;
   } = {
     full_name: full_name.length ? full_name : null,
@@ -133,6 +141,7 @@ export async function updateStudentProfile(
     preference,
     study_mode: studyMode,
     bio: bio.length ? bio : null,
+    group_study_agreement_accepted: studyMode === "group" ? groupStudyAgreementAccepted : false,
   };
 
   if (newProfilePictureUrl !== undefined) {
@@ -144,7 +153,7 @@ export async function updateStudentProfile(
     .update(payload)
     .eq("user_id", user.id)
     .select(
-      "user_id, email, full_name, phone, preference, study_mode, profile_picture_url, bio"
+      "user_id, email, full_name, phone, preference, study_mode, profile_picture_url, bio, group_study_agreement_accepted"
     )
     .single();
 

@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { group } from "console";
 
 type StudyMode = "group" | "independent";
 type Preference = "in_person" | "online" | "no_preference";
@@ -37,6 +38,7 @@ type Profile = {
   study_mode: StudyMode;
   profile_picture_url: string | null;
   bio: string | null;
+  group_study_agreement_accepted: boolean | null;
   hasAssignedGroup: boolean;
 };
 
@@ -90,6 +92,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   const defaultPreference: Preference = profile.preference ?? "no_preference";
   const [studyMode, setStudyMode] = useState<StudyMode>(profile.study_mode);
   const [preference, setPreference] = useState<Preference>(defaultPreference);
+  const [groupStudyAgreementAccepted, setGroupStudyAgreementAccepted] = useState(profile.group_study_agreement_accepted ?? false);
   const [fullName, setFullName] = useState(profile.full_name ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
   const [phoneDisplay, setPhoneDisplay] = useState(
@@ -131,12 +134,22 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       return;
     }
 
+    const groupAgreementChecked = new FormData(e.currentTarget).get("group_study_agreement_accepted") === "true";
+    if (studyMode === "group" && !groupAgreementChecked) {
+      setToast({
+        type: "error",
+        text: "You must accept the group study agreement to join a group.",
+      });
+      return;
+    }
+
     const safe = new FormData();
     safe.set("full_name", fullName.trim());
     safe.set("phone", cleanPhone);
     safe.set("preference", preference);
     safe.set("study_mode", studyMode);
     safe.set("bio", bio);
+    safe.set("group_study_agreement_accepted", groupAgreementChecked ? "true" : "false");
     if (selectedFile) {
       safe.set("avatar", selectedFile);
     }
@@ -396,27 +409,31 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
               group, and your availability page will stay informational.
             </StatusCallout>
           ) : (
-            <div className="rounded-lg border bg-muted/20 p-4">
-              <div className="mb-3 flex items-baseline justify-between gap-2">
-                <Label className="text-sm">Meeting preference</Label>
-                <span className="text-xs text-muted-foreground">
-                  Used when matching your group
-                </span>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {PREFERENCE_OPTIONS.map((option) => (
-                  <ChoiceCard
-                    key={option.value}
-                    compact
-                    name="preference"
-                    value={option.value}
-                    checked={preference === option.value}
-                    onSelect={() => setPreference(option.value)}
+            <div className="rounded-lg border bg-muted/20 p-4 mt-4">
+              <div className="space-y-3 text-sm leading-6">
+                <h3 className="font-semibold">Group Study Agreement</h3>
+
+                <p className="text-muted-foreground">
+                  By selecting Group study, you agree to participate respectfully,
+                  communicate with your assigned group, and make a good-faith effort to
+                  attend scheduled study sessions.
+                </p>
+
+                <label className="flex items-start gap-3 rounded-md border bg-background p-3">
+                  <input
+                    type="checkbox"
+                    name="group_study_agreement_accepted"
+                    value="true"
+                    defaultChecked={groupStudyAgreementAccepted}
                     disabled={isPending}
-                    title={option.label}
-                    description={option.description}
+                    className="mt-1"
                   />
-                ))}
+
+                  <span>
+                    I understand and agree to participate in group studying under these
+                    expectations.
+                  </span>
+                </label>
               </div>
             </div>
           )}
