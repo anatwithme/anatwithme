@@ -155,7 +155,7 @@ async function requireAdmin(supabase: SupabaseClient) {
     return { error: "Failed to verify admin access" } as const;
   }
 
-  if (isAdmin) {
+  if (!isAdmin) {
     return { error: "Admin only" } as const;
   }
 
