@@ -209,6 +209,10 @@ export default async function StudentAgendaPage({
     selectedAgenda,
     myCompletedTaskSet,
   );
+  const totalCompletedOverall = (myCompletions ?? []).filter(c => c.completed).length;
+  const overallProgressPercent = allTaskIds.length > 0
+  ? Math.round((totalCompletedOverall / allTaskIds.length) * 100)
+  : 0;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
@@ -222,6 +226,7 @@ export default async function StudentAgendaPage({
         studentProgressPercent={selectedSummary.studentProgressPercent}
         groupProgressPercent={selectedSummary.groupProgressPercent}
         hasGroup={Boolean(membership)}
+        overallProgressPercent={overallProgressPercent}
       />
     </div>
   );
