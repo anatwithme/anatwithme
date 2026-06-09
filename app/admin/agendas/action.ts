@@ -102,3 +102,33 @@ export async function deleteAgenda(agendaId: number) {
 
   revalidatePath("/admin/agendas");
 }
+
+export async function reorderAgendas(orderedAgendaIds: number[]) {
+  const supabase = await createClient();
+
+  // Temporary negate week numbers to avoid conflicts
+  for (let i = 0; i < orderedAgendaIds.length; i++) {
+    const { error: agendaError } = await supabase
+      .from("agenda")
+      .update({ week: -(i + 1) })
+      .eq("id", orderedAgendaIds[i]);
+
+    if (agendaError) {
+      throw new Error(`Error saving reorder: ${agendaError.message}`);
+    }
+  }
+
+  // Update to final week numbers
+  for (let i = 0; i < orderedAgendaIds.length; i++) {
+    const { error: agendaError } = await supabase
+      .from("agenda")
+      .update({ week: i + 1 })
+      .eq("id", orderedAgendaIds[i]);
+
+    if (agendaError) {
+      throw new Error(`Error saving reorder: ${agendaError.message}`);
+    }
+  }
+
+  revalidatePath("/admin/agendas");
+}
