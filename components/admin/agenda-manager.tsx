@@ -419,74 +419,74 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       )}
 
       {/* Agenda table */}
-      <div className="border">
-        <Table>
-          <colgroup>
-            <col className="w-10" />
-            <col className="w-10" />
-            <col className="w-[5rem]" />
-            <col className="w-[16rem]" />
-            <col className="w-[10rem]" />
-            <col className="w-[10rem]" />
-            <col />
-            <col className="w-14" />
-          </colgroup>
-          <TableHeader>
-            <TableRow className="bg-muted/100">
-              <TableHead className="w-10 px-4" aria-label="Drag" />
-              <TableHead className="w-10 px-4" aria-label="Expand" />
-              <TableHead className="px-4">Week</TableHead>
-              <TableHead className="px-4">Title</TableHead>
-              <TableHead className="px-4">Start date</TableHead>
-              <TableHead className="px-4">End date</TableHead>
-              <TableHead className="px-4">Description</TableHead>
-              <TableHead className="px-4 text-right">
-                {agendaItems.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="-mr-2"
-                    onClick={() => {
-                      const allExpanded =
-                        expandedAgendaIds.size === agendaItems.length;
-                      if (allExpanded) {
-                        setExpandedAgendaIds(new Set());
-                      } else {
-                        setExpandedAgendaIds(new Set(agendaItems.map((a) => a.id)));
-                      }
-                    }}
-                  >
-                    {expandedAgendaIds.size === agendaItems.length ? (
-                      <>
-                        <ChevronsUpDown className="mr-1.5 h-4 w-4" />
-                        Collapse all
-                      </>
-                    ) : (
-                      <>
-                        <ChevronsDownUp className="mr-1.5 h-4 w-4" />
-                        Expand all
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  <span className="sr-only">Actions</span>
-                )}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <DndContext id="agenda-dnd" collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            {agendaItems.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="px-4 py-12 text-center text-muted-foreground"
-                >
-                  No agendas yet.
-                </TableCell>
+      <DndContext id="agenda-dnd" collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="border">
+          <Table>
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-10" />
+              <col className="w-[5rem]" />
+              <col className="w-[16rem]" />
+              <col className="w-[10rem]" />
+              <col className="w-[10rem]" />
+              <col />
+              <col className="w-14" />
+            </colgroup>
+            <TableHeader>
+              <TableRow className="bg-muted/100">
+                <TableHead className="w-10 px-4" aria-label="Drag" />
+                <TableHead className="w-10 px-4" aria-label="Expand" />
+                <TableHead className="px-4">Week</TableHead>
+                <TableHead className="px-4">Title</TableHead>
+                <TableHead className="px-4">Start date</TableHead>
+                <TableHead className="px-4">End date</TableHead>
+                <TableHead className="px-4">Description</TableHead>
+                <TableHead className="px-4 text-right">
+                  {agendaItems.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-mr-2"
+                      onClick={() => {
+                        const allExpanded =
+                          expandedAgendaIds.size === agendaItems.length;
+                        if (allExpanded) {
+                          setExpandedAgendaIds(new Set());
+                        } else {
+                          setExpandedAgendaIds(new Set(agendaItems.map((a) => a.id)));
+                        }
+                      }}
+                    >
+                      {expandedAgendaIds.size === agendaItems.length ? (
+                        <>
+                          <ChevronsUpDown className="mr-1.5 h-4 w-4" />
+                          Collapse all
+                        </>
+                      ) : (
+                        <>
+                          <ChevronsDownUp className="mr-1.5 h-4 w-4" />
+                          Expand all
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <span className="sr-only">Actions</span>
+                  )}
+                </TableHead>
               </TableRow>
-            ) : (
-              <TableBody>
+            </TableHeader>
+            <TableBody>
+              {agendaItems.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    No agendas yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
                 <SortableContext
                   items={agendaItems.map((agenda) => agenda.id)}
                   strategy={verticalListSortingStrategy}
@@ -561,7 +561,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                         key={`${agenda.id}-detail`}
                         className="bg-muted/5 hover:bg-muted/5"
                       >
-                        <TableCell colSpan={8} className="px-4 py-3mb bg-muted/100">
+                        <TableCell colSpan={8} className="px-4 py-3 bg-muted/100">
                           <div className="ml-10 px-4 py-3">
                             <div className="max-h-48 overflow-y-auto">
                               {sections.length === 0 ? (
@@ -817,17 +817,18 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                             </TableRow>
 
                             {detailRow}
+
                           </Fragment>
                         )}
                       </SortableAgendaRow>
                     );
                   })}
                 </SortableContext>
-              </TableBody>
-            )}
-          </DndContext>
-        </Table>
-      </div>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </DndContext>
     </div>
   );
 }
