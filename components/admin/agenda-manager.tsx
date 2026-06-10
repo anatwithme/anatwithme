@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Copy,
 } from "lucide-react";
 import {
   DndContext,
@@ -29,6 +30,7 @@ import { useRouter } from "next/navigation";
 import {
   createAgenda,
   deleteAgenda,
+  copyAgenda,
   updateAgenda,
   reorderAgendas,
   toggleAgenda,
@@ -160,6 +162,8 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
 
   const [agendaItems, setAgendaItems] = useState(agendas);
 
+  const [copyingId, setCopyingId] = useState<number | null>(null);
+
   const resetCreateForm = () => {
     setCreateTitle("");
     setCreateDescription("");
@@ -269,6 +273,23 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
         );
       } finally {
         setDeletingId(null);
+      }
+    });
+  };
+
+  const handleCopyAgenda = (agendaId: number) => {
+    setActionError(null);
+    setCopyingId(agendaId);
+
+    startTransition(async () => {
+      try {
+        await copyAgenda(agendaId);
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to copy agenda.",
+        );
+      } finally {
+        setCopyingId(null);
       }
     });
   };
@@ -852,6 +873,16 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        disabled={isPending || copyingId === agenda.id}
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                          handleCopyAgenda(agenda.id);
+                                        }}
+                                      >
+                                        <Copy className="size-4" />
+                                        {copyingId === agenda.id ? "Copying..." : "Copy"}
+                                      </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onSelect={(e) => {
                                           e.preventDefault();

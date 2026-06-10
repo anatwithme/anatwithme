@@ -104,6 +104,35 @@ export async function deleteAgenda(agendaId: number) {
   revalidatePath("/admin/agendas");
 }
 
+export async function copyAgenda(agendaId: number) {
+  const supabase = await createClient();
+
+  const { data: originalAgenda, error: agendaFetchError } = await supabase
+    .from("agenda")
+    .select("title, description, start_date, end_date, enabled")
+    .eq("id", agendaId)
+    .single();
+
+  if (agendaFetchError || !originalAgenda) {
+    throw new Error(`Error fetching agenda to copy: ${agendaFetchError?.message}`);
+  }
+
+  const { error: insertAgendaError } = await supabase.from("agenda").insert({
+    title: `${originalAgenda.title} Copy`,
+    description: originalAgenda.description,
+    week: null,
+    start_date: originalAgenda.start_date,
+    end_date: originalAgenda.end_date,
+    enabled: false,
+  });
+
+  if (insertAgendaError) {
+    throw new Error(`Error copying agenda: ${insertAgendaError.message}`);
+  }
+
+  revalidatePath("/admin/agendas");
+}
+
 export async function reorderAgendas(agendas: { id: number; week: number; enabled: boolean;}[]) {
   const supabase = await createClient();
 
