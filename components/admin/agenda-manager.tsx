@@ -788,7 +788,6 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                     startTransition(async () => {
                                       try {
                                         await toggleAgenda(agenda.id, enabled);
-                                        router.refresh();
                                       } catch (error) {
                                         setActionError(
                                           error instanceof Error
