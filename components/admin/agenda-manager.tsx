@@ -31,6 +31,7 @@ import {
   deleteAgenda,
   updateAgenda,
   reorderAgendas,
+  toggleAgenda,
 } from "@/app/admin/agendas/action";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,9 +85,10 @@ type Agenda = {
   id: number;
   title: string;
   description: string | null;
-  week: number;
+  week: number | null;
   start_date: string;
   end_date: string;
+  enabled: boolean;
   sections?: Section[];
 };
 
@@ -172,7 +174,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     setEditingAgendaId(agenda.id);
     setEditTitle(agenda.title);
     setEditDescription(agenda.description ?? "");
-    setEditWeek(String(agenda.week));
+    setEditWeek(String(agenda.week ?? "N/A"));
     setEditStartDate(agenda.start_date);
     setEditEndDate(agenda.end_date);
   };
@@ -281,18 +283,21 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(agendaItems, oldIndex, newIndex).map(
-      (agenda, index) => ({
-        ...agenda,
-        week: index + 1,
-      })
+    const reordered = renumberEnabledAgendas(
+      arrayMove(agendaItems, oldIndex, newIndex),
     );
 
     setAgendaItems(reordered);
 
     startTransition(async () => {
       try {
-        await reorderAgendas(reordered.map((agenda) => agenda.id));
+        await reorderAgendas(
+          reordered.map((agenda) => ({
+            id: agenda.id,
+            week: agenda.week,
+            enabled: agenda.enabled,
+          })),
+        );
         router.refresh();
       } catch (error) {
         setActionError(
@@ -301,6 +306,24 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       }
     });
   };
+
+  function renumberEnabledAgendas(agendas: Agenda[]) {
+    let week = 1;
+
+    return agendas.map((agenda) => {
+      if (!agenda.enabled) {
+        return {
+          ...agenda,
+          week: 0,
+        };
+      }
+
+      return {
+        ...agenda,
+        week: week++,
+      };
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -425,6 +448,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
             <colgroup>
               <col className="w-10" />
               <col className="w-10" />
+              <col className="w-10" />
               <col className="w-[5rem]" />
               <col className="w-[16rem]" />
               <col className="w-[10rem]" />
@@ -435,6 +459,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
             <TableHeader>
               <TableRow className="bg-muted/100">
                 <TableHead className="w-10 px-4" aria-label="Drag" />
+                <TableHead className="w-10 px-4">Enabled</TableHead>
                 <TableHead className="w-10 px-4" aria-label="Expand" />
                 <TableHead className="px-4">Week</TableHead>
                 <TableHead className="px-4">Title</TableHead>
@@ -480,7 +505,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
               {agendaItems.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-12 text-center text-muted-foreground"
                   >
                     No agendas yet.
@@ -561,7 +586,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                         key={`${agenda.id}-detail`}
                         className="bg-muted/5 hover:bg-muted/5"
                       >
-                        <TableCell colSpan={8} className="px-4 py-3 bg-muted/100">
+                        <TableCell colSpan={9} className="px-4 py-3 bg-muted/100">
                           <div className="ml-10 px-4 py-3">
                             <div className="max-h-48 overflow-y-auto">
                               {sections.length === 0 ? (
@@ -639,6 +664,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                       return (
                         <Fragment key={agenda.id}>
                           <TableRow className="bg-muted/40">
+                            <TableCell className="w-10 px-4" />
                             <TableCell className="w-10 px-4" />
                             {expandCell}
                             <TableCell className="px-4 align-top">
@@ -722,6 +748,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                               style={style}
                               className={cn(
                                 isDeleting && "opacity-50",
+                                !agenda.enabled && "opacity-40",
                                 "[&>td]:align-middle",
                               )}
                             >
@@ -738,11 +765,47 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                 </button>
                               </TableCell>
 
+                              <TableCell className="w-10 px-4 align-middle text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={agenda.enabled ?? true}
+                                  disabled={isPending}
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={(event) => {
+                                    const enabled = event.target.checked;
+
+                                    const updated = renumberEnabledAgendas(
+                                      agendaItems.map((item) =>
+                                        item.id === agenda.id
+                                          ? {...item, enabled}
+                                          : item,
+                                      ),
+                                    );
+
+                                    setAgendaItems(updated);
+
+                                    startTransition(async () => {
+                                      try {
+                                        await toggleAgenda(agenda.id, enabled);
+                                        router.refresh();
+                                      } catch (error) {
+                                        setActionError(
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Failed to update agenda status.",
+                                        )
+                                      }
+                                    })
+                                  }}
+                                />
+                              </TableCell>
+
                               {expandCell}
 
                               <TableCell className="px-4">
                                 <span className="inline-flex h-6 w-8 items-center justify-center rounded bg-muted text-xs font-medium tabular-nums">
-                                  {agenda.week}
+                                  {agenda.enabled ? agenda.week : "N/A"}
                                 </span>
                               </TableCell>
                               <TableCell className="px-4 font-medium">
