@@ -286,6 +286,10 @@ export async function removeStudent(studentId: string) {
   if (!studentProfile) {
     throw new Error("Student profile not found.");
   }
+  
+  if (studentProfile.role !== "student") {
+    throw new Error("Only student accounts can be deleted.");
+  }
 
   const { error } = await (await adminClient).auth.admin.deleteUser(studentId);
 
