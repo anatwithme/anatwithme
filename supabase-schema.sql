@@ -32,7 +32,8 @@ create table public.agenda (
   description text,
   week integer not null unique,
   start_date date not null,
-  end_date date not null
+  end_date date not null,
+  enabled boolean not null default true
 );
 
 create table public.section (
@@ -223,7 +224,7 @@ begin
     raise exception 'Only owners may change roles';
   end if;
 
-  -- Only owners can change user IDs
+  -- Nobody can change user IDs
   if new.user_id is distinct from old.user_id then
     raise exception 'Not allowed to update user_id';
   end if;
@@ -237,7 +238,7 @@ begin
 end;
 $$;
 
--- Allows owners to promote students to admins and demote admins to students.
+-- Allows owners to promote students to admins or demote admins to students.
 create or replace function public.set_user_role(
   target_user uuid,
   new_role public.role
@@ -328,6 +329,105 @@ as $$
   where mo.group_id in (
     select group_id from public.member_of where user_id = (select auth.uid())
   );
+$$;
+
+
+-- Handles copying of agendas and their sections and tasks
+create or replace function public.copy_agenda(source_agenda_id integer)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  new_agenda_id integer;
+  source_week integer;
+  source_section record;
+  new_section_id integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Admin only';
+  end if;
+
+  select week
+  into source_week
+  from public.agenda
+  where id = source_agenda_id;
+
+  if source_week is null then
+    raise exception 'Cannot copy agenda without a week';
+  end if;
+
+  -- Temporarily move rows below the copied agenda
+  update public.agenda
+  set week = -week
+  where week > source_week;
+
+  -- Move them down one
+  update public.agenda
+  set week = abs(week) + 1
+  where week < 0;
+
+  insert into public.agenda (
+    title,
+    description,
+    week,
+    start_date,
+    end_date,
+    enabled
+  )
+  select
+    title || ' Copy',
+    description,
+    source_week + 1,
+    start_date,
+    end_date,
+    false
+  from public.agenda
+  where id = source_agenda_id
+  returning id into new_agenda_id;
+
+  for source_section in
+    select *
+    from public.section
+    where agenda_id = source_agenda_id
+    order by "order"
+  loop
+    insert into public.section (
+      agenda_id,
+      title,
+      description,
+      type,
+      "order"
+    )
+    values (
+      new_agenda_id,
+      source_section.title,
+      source_section.description,
+      source_section.type,
+      source_section."order"
+    )
+    returning id into new_section_id;
+
+    insert into public.task (
+      section_id,
+      title,
+      description,
+      link,
+      "order"
+    )
+    select
+      new_section_id,
+      title,
+      description,
+      link,
+      "order"
+    from public.task
+    where section_id = source_section.id;
+  end loop;
+
+  return new_agenda_id;
+end;
 $$;
 
 create trigger on_auth_user_created
