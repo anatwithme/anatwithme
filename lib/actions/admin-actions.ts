@@ -26,6 +26,7 @@ type StudentProfileRow = {
   full_name: string | null;
   preference: "in_person" | "online" | "no_preference" | null;
   study_mode: "group" | "independent";
+  group_study_agreement_accepted: boolean | null;
   member_of?: {
     group_id: string;
   }[] | null;
@@ -74,6 +75,7 @@ type ManualStudentContext = {
   full_name: string | null;
   preference: "in_person" | "online" | "no_preference" | null;
   study_mode: "group" | "independent";
+  group_study_agreement_accepted: boolean | null;
   member_of?: GroupMembershipRow[] | null;
   availabilitySlotIndexes: number[];
 };
@@ -174,7 +176,7 @@ async function loadStudentContexts(
 
   const { data: studentProfiles, error: profileError } = await supabase
     .from("profile")
-    .select("user_id, full_name, preference, study_mode, member_of(group_id)")
+    .select("user_id, full_name, preference, study_mode, group_study_agreement_accepted, member_of(group_id)")
     .in("user_id", uniqueIds)
     .eq("role", "student");
 
@@ -475,7 +477,7 @@ export async function runMatchingAction(
   // students who are not already in a group
   const { data: studentProfiles, error: profileError } = await supabase
     .from("profile")
-    .select("user_id, full_name, preference, study_mode, member_of(group_id)")
+    .select("user_id, full_name, preference, study_mode, group_study_agreement_accepted, member_of(group_id)")
     .eq("role", "student");
 
   if (profileError) {
@@ -866,6 +868,12 @@ export async function assignStudentToGroup(
   if (student.study_mode === "independent") {
     return {
       error: `${student.full_name ?? "This student"} is in Independent Study and cannot be assigned to a group.`,
+    };
+  }
+
+  if(!student.group_study_agreement_accepted) {
+    return {
+      error: `${student.full_name ?? "This student"} has not accepted the Group Study Agreement and cannot be assigned to a group.`,
     };
   }
 

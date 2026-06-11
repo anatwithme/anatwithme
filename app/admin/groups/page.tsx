@@ -17,6 +17,7 @@ type UngroupedStudent = {
   phone: string | null;
   preference: "in_person" | "online" | "no_preference" | null;
   study_mode: "group" | "independent";
+  group_study_agreement_accepted: boolean | null;
   profile_picture_url: string | null;
   member_of?: {
     group_id: string;
@@ -65,6 +66,7 @@ export default async function AdminGroupsPage() {
       phone,
       preference,
       study_mode,
+      group_study_agreement_accepted,
       profile_picture_url,
       member_of (
         group_id
@@ -87,6 +89,7 @@ export default async function AdminGroupsPage() {
     phone: student.phone,
     preference: student.preference,
     study_mode: student.study_mode,
+    group_study_agreement_accepted: student.group_study_agreement_accepted,
     profile_picture_url: student.profile_picture_url,
     member_of: student.member_of,
   }));
@@ -94,7 +97,8 @@ export default async function AdminGroupsPage() {
   const ungroupedStudents = allStudents
     .filter(
       (student) =>
-        student.study_mode !== "independent" &&
+        student.study_mode == "group" &&
+        student.group_study_agreement_accepted &&
         (!student.member_of || student.member_of.length === 0),
     )
     .map(({ member_of: _memberOf, ...student }) => student);
