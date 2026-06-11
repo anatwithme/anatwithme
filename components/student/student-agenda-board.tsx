@@ -39,6 +39,7 @@ type Agenda = {
   week: number;
   start_date: string;
   end_date: string;
+  enabled: boolean;
   sections: Section[];
 };
 
@@ -63,6 +64,7 @@ type Props = {
   studentProgressPercent: number;
   groupProgressPercent: number;
   hasGroup?: boolean;
+  overallProgressPercent: number;
 };
 
 const LAST_AGENDA_STORAGE_KEY = "student_last_agenda_id";
@@ -115,6 +117,7 @@ export default function StudentAgendaBoard({
   studentProgressPercent,
   groupProgressPercent,
   hasGroup = false,
+  overallProgressPercent,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -436,6 +439,7 @@ export default function StudentAgendaBoard({
               {hasGroup ? (
                 <ProgressBar label="Group Progress" percent={groupProgressPercent} />
               ) : null}
+              <ProgressBar label="Overall Course Progress" percent={overallProgressPercent} />
             </div>
 
             <div className="mt-auto pt-8">
