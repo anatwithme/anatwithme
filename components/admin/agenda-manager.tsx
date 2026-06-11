@@ -287,6 +287,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     startTransition(async () => {
       try {
         await copyAgenda(agendaId);
+        router.refresh();
       } catch (error) {
         setActionError(
           error instanceof Error ? error.message : "Failed to copy agenda.",
@@ -307,8 +308,11 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = renumberEnabledAgendas(
-      arrayMove(agendaItems, oldIndex, newIndex),
+    const reordered = arrayMove(agendaItems, oldIndex, newIndex).map(
+      (agenda, index) => ({
+        ...agenda,
+        week: index + 1,
+      }),
     );
 
     setAgendaItems(reordered);
@@ -331,22 +335,12 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     });
   };
 
-  function renumberEnabledAgendas(agendas: Agenda[]) {
-    let week = 1;
+  function getDisplayWeek(agendas: Agenda[], agendaId: number) {
+    const index = agendas
+        .filter((agenda) => agenda.enabled)
+        .findIndex((agenda) => agenda.id === agendaId);
 
-    return agendas.map((agenda) => {
-      if (!agenda.enabled) {
-        return {
-          ...agenda,
-          week: 0,
-        };
-      }
-
-      return {
-        ...agenda,
-        week: week++,
-      };
-    });
+    return index === -1 ? null : index + 1;
   }
 
   return (
@@ -799,12 +793,10 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                   onChange={(event) => {
                                     const enabled = event.target.checked;
 
-                                    const updated = renumberEnabledAgendas(
-                                      agendaItems.map((item) =>
+                                    const updated = agendaItems.map((item) =>
                                         item.id === agenda.id
                                           ? {...item, enabled}
                                           : item,
-                                      ),
                                     );
 
                                     setAgendaItems(updated);
@@ -828,7 +820,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
 
                               <TableCell className="px-4">
                                 <span className="inline-flex h-6 w-8 items-center justify-center rounded bg-muted text-xs font-medium tabular-nums">
-                                  {agenda.enabled ? agenda.week : "N/A"}
+                                  {agenda.enabled ? getDisplayWeek(agendaItems, agenda.id) : "N/A"}
                                 </span>
                               </TableCell>
                               <TableCell className="px-4 font-medium">

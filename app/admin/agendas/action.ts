@@ -156,7 +156,7 @@ export async function copyAgenda(agendaId: number) {
 
   const sections = originalAgenda.sections ?? [];
 
-  sections.forEach(async (section) => {
+  for (const section of sections) {
     const { data: copiedSection, error: insertSectionError } = await supabase
       .from("section")
       .insert({
@@ -192,7 +192,7 @@ export async function copyAgenda(agendaId: number) {
         throw new Error(`Error copying task: ${insertTaskError?.message}`);
       }
     }
-  });
+  }
 
   revalidatePath("/admin/agendas");
 }
