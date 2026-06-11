@@ -527,6 +527,7 @@ export async function runMatchingAction(
   )
     .filter((profileRow) =>
       profileRow.study_mode !== "independent" &&
+      profileRow.group_study_agreement_accepted === true &&
       (mode === "regroup_all"
         ? true
         : !profileRow.member_of || profileRow.member_of.length === 0),
