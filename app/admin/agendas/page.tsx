@@ -29,6 +29,7 @@ type Agenda = {
   week: number;
   start_date: string;
   end_date: string;
+  enabled: boolean;
   sections?: Section[];
 };
 

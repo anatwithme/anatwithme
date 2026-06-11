@@ -7,16 +7,33 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   ExternalLink,
+  GripVertical,
   MoreHorizontal,
   Pencil,
   Trash2,
+  Copy,
 } from "lucide-react";
-import { FormEvent, Fragment, useState, useTransition } from "react";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { FormEvent, Fragment, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAgenda,
   deleteAgenda,
+  copyAgenda,
   updateAgenda,
+  reorderAgendas,
+  toggleAgenda,
 } from "@/app/admin/agendas/action";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,9 +87,10 @@ type Agenda = {
   id: number;
   title: string;
   description: string | null;
-  week: number;
+  week: number | null;
   start_date: string;
   end_date: string;
+  enabled: boolean;
   sections?: Section[];
 };
 
@@ -88,6 +106,34 @@ function formatAgendaDate(value: string) {
     day: "2-digit",
     year: "numeric",
   }).format(date);
+}
+
+function SortableAgendaRow({
+  agendaId, 
+  children
+}: {
+  agendaId: number; 
+  children: (props: {
+    setNodeRef: (node: HTMLElement | null) => void;
+    style: React.CSSProperties;
+    attributes: ReturnType<typeof useSortable>["attributes"];
+    listeners: ReturnType<typeof useSortable>["listeners"];
+  }) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: agendaId });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return <>{children({ setNodeRef, style, attributes, listeners })}</>;
 }
 
 export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
@@ -114,6 +160,13 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
 
+  const [agendaItems, setAgendaItems] = useState(agendas);
+  useEffect(() => {
+    setAgendaItems(agendas);
+  }, [agendas]);
+
+  const [copyingId, setCopyingId] = useState<number | null>(null);
+
   const resetCreateForm = () => {
     setCreateTitle("");
     setCreateDescription("");
@@ -128,7 +181,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     setEditingAgendaId(agenda.id);
     setEditTitle(agenda.title);
     setEditDescription(agenda.description ?? "");
-    setEditWeek(String(agenda.week));
+    setEditWeek(String(agenda.week ?? "N/A"));
     setEditStartDate(agenda.start_date);
     setEditEndDate(agenda.end_date);
   };
@@ -226,6 +279,69 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       }
     });
   };
+
+  const handleCopyAgenda = (agendaId: number) => {
+    setActionError(null);
+    setCopyingId(agendaId);
+
+    startTransition(async () => {
+      try {
+        await copyAgenda(agendaId);
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to copy agenda.",
+        );
+      } finally {
+        setCopyingId(null);
+      }
+    });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = agendaItems.findIndex((agenda) => agenda.id === active.id);
+    const newIndex = agendaItems.findIndex((agenda) => agenda.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(agendaItems, oldIndex, newIndex).map(
+      (agenda, index) => ({
+        ...agenda,
+        week: index + 1,
+      }),
+    );
+
+    setAgendaItems(reordered);
+
+    startTransition(async () => {
+      try {
+        await reorderAgendas(
+          reordered.map((agenda) => ({
+            id: agenda.id,
+            week: agenda.week,
+            enabled: agenda.enabled,
+          })),
+        );
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to reorder agendas.",
+        );
+      }
+    });
+  };
+
+  function getDisplayWeek(agendas: Agenda[], agendaId: number) {
+    const index = agendas
+        .filter((agenda) => agenda.enabled)
+        .findIndex((agenda) => agenda.id === agendaId);
+
+    return index === -1 ? null : index + 1;
+  }
 
   return (
     <div className="space-y-4">
@@ -344,368 +460,463 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       )}
 
       {/* Agenda table */}
-      <div className="border">
-        <Table>
-          <colgroup>
-            <col className="w-10" />
-            <col className="w-[5rem]" />
-            <col className="w-[16rem]" />
-            <col className="w-[10rem]" />
-            <col className="w-[10rem]" />
-            <col />
-            <col className="w-14" />
-          </colgroup>
-          <TableHeader>
-            <TableRow className="bg-muted/100">
-              <TableHead className="w-10 px-4" aria-label="Expand" />
-              <TableHead className="px-4">Week</TableHead>
-              <TableHead className="px-4">Title</TableHead>
-              <TableHead className="px-4">Start date</TableHead>
-              <TableHead className="px-4">End date</TableHead>
-              <TableHead className="px-4">Description</TableHead>
-              <TableHead className="px-4 text-right">
-                {agendas.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="-mr-2"
-                    onClick={() => {
-                      const allExpanded =
-                        expandedAgendaIds.size === agendas.length;
-                      if (allExpanded) {
-                        setExpandedAgendaIds(new Set());
-                      } else {
-                        setExpandedAgendaIds(new Set(agendas.map((a) => a.id)));
-                      }
-                    }}
-                  >
-                    {expandedAgendaIds.size === agendas.length ? (
-                      <>
-                        <ChevronsUpDown className="mr-1.5 h-4 w-4" />
-                        Collapse all
-                      </>
-                    ) : (
-                      <>
-                        <ChevronsDownUp className="mr-1.5 h-4 w-4" />
-                        Expand all
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  <span className="sr-only">Actions</span>
-                )}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {agendas.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="px-4 py-12 text-center text-muted-foreground"
-                >
-                  No agendas yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              agendas.map((agenda) => {
-                const isEditing = editingAgendaId === agenda.id;
-                const isDeleting = deletingId === agenda.id;
-                const isExpanded = expandedAgendaIds.has(agenda.id);
-                const sections = [...(agenda.sections ?? [])]
-                  .sort((a, b) => {
-                    const oa = a.order ?? Infinity;
-                    const ob = b.order ?? Infinity;
-                    return oa - ob;
-                  })
-                  .map((section) => ({
-                    ...section,
-                    tasks: [...(section.tasks ?? [])].sort((a, b) => {
-                      const oa = a.order ?? Infinity;
-                      const ob = b.order ?? Infinity;
-                      return oa - ob;
-                    }),
-                  }));
-                const taskCount = sections.reduce(
-                  (count, section) => count + (section.tasks?.length ?? 0),
-                  0,
-                );
-
-                const expandCell = (
-                  <TableCell className="w-10 px-4 align-middle">
+      <DndContext id="agenda-dnd" collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="border">
+          <Table>
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-10" />
+              <col className="w-10" />
+              <col className="w-[5rem]" />
+              <col className="w-[16rem]" />
+              <col className="w-[10rem]" />
+              <col className="w-[10rem]" />
+              <col />
+              <col className="w-14" />
+            </colgroup>
+            <TableHeader>
+              <TableRow className="bg-muted/100">
+                <TableHead className="w-10 px-4" aria-label="Drag" />
+                <TableHead className="w-10 px-4">Enabled</TableHead>
+                <TableHead className="w-10 px-4" aria-label="Expand" />
+                <TableHead className="px-4">Week</TableHead>
+                <TableHead className="px-4">Title</TableHead>
+                <TableHead className="px-4">Start date</TableHead>
+                <TableHead className="px-4">End date</TableHead>
+                <TableHead className="px-4">Description</TableHead>
+                <TableHead className="px-4 text-right">
+                  {agendaItems.length > 0 ? (
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={() =>
-                        setExpandedAgendaIds((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(agenda.id)) next.delete(agenda.id);
-                          else next.add(agenda.id);
-                          return next;
-                        })
-                      }
-                      aria-expanded={isExpanded}
-                      aria-label={
-                        isExpanded ? "Collapse sections" : "Expand sections"
-                      }
+                      size="sm"
+                      className="-mr-2"
+                      onClick={() => {
+                        const allExpanded =
+                          expandedAgendaIds.size === agendaItems.length;
+                        if (allExpanded) {
+                          setExpandedAgendaIds(new Set());
+                        } else {
+                          setExpandedAgendaIds(new Set(agendaItems.map((a) => a.id)));
+                        }
+                      }}
                     >
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4" />
+                      {expandedAgendaIds.size === agendaItems.length ? (
+                        <>
+                          <ChevronsUpDown className="mr-1.5 h-4 w-4" />
+                          Collapse all
+                        </>
                       ) : (
-                        <ChevronDown className="h-4 w-4" />
+                        <>
+                          <ChevronsDownUp className="mr-1.5 h-4 w-4" />
+                          Expand all
+                        </>
                       )}
                     </Button>
-                  </TableCell>
-                );
-
-                const detailRow = isExpanded ? (
-                  <TableRow
-                    key={`${agenda.id}-detail`}
-                    className="bg-muted/5 hover:bg-muted/5"
+                  ) : (
+                    <span className="sr-only">Actions</span>
+                  )}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agendaItems.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="px-4 py-12 text-center text-muted-foreground"
                   >
-                    <TableCell colSpan={7} className="px-4 py-3mb bg-muted/100">
-                      <div className="ml-10 px-4 py-3">
-                        <div className="max-h-48 overflow-y-auto">
-                          {sections.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                              No sections
-                            </p>
-                          ) : (
-                            <ul className="space-y-2.5 text-sm">
-                              {sections.map((section) => (
-                                <li key={section.id} className="space-y-1.5">
-                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                    <span className="font-medium">
-                                      {section.order != null
-                                        ? `${section.order}. ${section.title}`
-                                        : section.title}
-                                    </span>
-                                    <span className="text-muted-foreground">
-                                      {section.description || "No description"}
-                                    </span>
-                                    <div className="ml-1 inline-flex items-center gap-1.5 border-l pl-3">
-                                      <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                                        {section.type[0].toUpperCase() +
-                                          section.type.slice(1)}
-                                      </span>
-                                      <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                                        {section.tasks?.length ?? 0}{" "}
-                                        {(section.tasks?.length ?? 0) === 1
-                                          ? "task"
-                                          : "tasks"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {section.tasks &&
-                                    section.tasks.length > 0 && (
-                                      <ul className="ml-4 space-y-1.5 text-muted-foreground">
-                                        {section.tasks.map((task) => (
-                                          <li
-                                            key={task.id}
-                                            className="flex flex-wrap items-center gap-x-2 gap-y-1"
-                                          >
-                                            <span className="font-medium text-foreground">
-                                              {task.order != null
-                                                ? `${task.order}. ${task.title}`
-                                                : task.title}
-                                            </span>
-                                            <span className="text-muted-foreground">
-                                              {task.description || "No description"}
-                                            </span>
-                                            {task.link && (
-                                              <a
-                                                href={task.link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="shrink-0 text-primary hover:underline"
-                                                aria-label="Open link"
-                                              >
-                                                <ExternalLink className="size-3.5" />
-                                              </a>
-                                            )}
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    )}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : null;
+                    No agendas yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                <SortableContext
+                  items={agendaItems.map((agenda) => agenda.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {agendaItems.map((agenda) => {
+                    const isEditing = editingAgendaId === agenda.id;
+                    const isDeleting = deletingId === agenda.id;
+                    const isExpanded = expandedAgendaIds.has(agenda.id);
+                    const sections = [...(agenda.sections ?? [])]
+                      .sort((a, b) => {
+                        const oa = a.order ?? Infinity;
+                        const ob = b.order ?? Infinity;
+                        return oa - ob;
+                      })
+                      .map((section) => ({
+                        ...section,
+                        tasks: [...(section.tasks ?? [])].sort((a, b) => {
+                          const oa = a.order ?? Infinity;
+                          const ob = b.order ?? Infinity;
+                          return oa - ob;
+                        }),
+                      }));
+                    const taskCount = sections.reduce(
+                      (count, section) => count + (section.tasks?.length ?? 0),
+                      0,
+                    );
 
-                if (isEditing) {
-                  return (
-                    <Fragment key={agenda.id}>
-                      <TableRow className="bg-muted/40">
-                        {expandCell}
-                        <TableCell className="px-4 align-top">
-                          <Input
-                            type="number"
-                            min={1}
-                            value={editWeek}
-                            onChange={(e) => setEditWeek(e.target.value)}
-                            disabled={isPending}
-                            className="h-8"
-                          />
-                        </TableCell>
-                        <TableCell className="px-4 align-top">
-                          <Input
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            disabled={isPending}
-                            className="h-8"
-                          />
-                        </TableCell>
-                        <TableCell className="px-4 align-top">
-                          <Input
-                            type="date"
-                            value={editStartDate}
-                            onChange={(e) => setEditStartDate(e.target.value)}
-                            disabled={isPending}
-                            className="h-8"
-                          />
-                        </TableCell>
-                        <TableCell className="px-4 align-top">
-                          <Input
-                            type="date"
-                            value={editEndDate}
-                            onChange={(e) => setEditEndDate(e.target.value)}
-                            disabled={isPending}
-                            className="h-8"
-                          />
-                        </TableCell>
-                        <TableCell className="px-4 align-top">
-                          <textarea
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            disabled={isPending}
-                            rows={1}
-                            className="flex min-h-9.5 w-full resize-y rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          />
-                        </TableCell>
-                        <TableCell className="px-4 text-right align-top">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="ghost"
-                              onClick={cancelEdit}
-                              disabled={isPending}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="button"
-                              size="xs"
-                              onClick={() => handleUpdateAgenda(agenda.id)}
-                              disabled={isPending}
-                            >
-                              {isPending ? "Saving..." : "Save"}
-                            </Button>
+                    const dragCell = (
+                      <TableCell className="w-10 px-4 align-middle">
+                        <button
+                          type="button"
+                          className="cursor-grab text-muted-foreground active:cursor-grabbing"
+                          disabled={isPending || isEditing}
+                          aria-label="Drag Agenda"
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </button>
+                      </TableCell>
+                    );
+
+                    const expandCell = (
+                      <TableCell className="w-10 px-4 align-middle">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() =>
+                            setExpandedAgendaIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(agenda.id)) next.delete(agenda.id);
+                              else next.add(agenda.id);
+                              return next;
+                            })
+                          }
+                          aria-expanded={isExpanded}
+                          aria-label={
+                            isExpanded ? "Collapse sections" : "Expand sections"
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                    );
+
+                    const detailRow = isExpanded ? (
+                      <TableRow
+                        key={`${agenda.id}-detail`}
+                        className="bg-muted/5 hover:bg-muted/5"
+                      >
+                        <TableCell colSpan={9} className="px-4 py-3 bg-muted/100">
+                          <div className="ml-10 px-4 py-3">
+                            <div className="max-h-48 overflow-y-auto">
+                              {sections.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                  No sections
+                                </p>
+                              ) : (
+                                <ul className="space-y-2.5 text-sm">
+                                  {sections.map((section) => (
+                                    <li key={section.id} className="space-y-1.5">
+                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span className="font-medium">
+                                          {section.order != null
+                                            ? `${section.order}. ${section.title}`
+                                            : section.title}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          {section.description || "No description"}
+                                        </span>
+                                        <div className="ml-1 inline-flex items-center gap-1.5 border-l pl-3">
+                                          <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                            {section.type[0].toUpperCase() +
+                                              section.type.slice(1)}
+                                          </span>
+                                          <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                            {section.tasks?.length ?? 0}{" "}
+                                            {(section.tasks?.length ?? 0) === 1
+                                              ? "task"
+                                              : "tasks"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {section.tasks &&
+                                        section.tasks.length > 0 && (
+                                          <ul className="ml-4 space-y-1.5 text-muted-foreground">
+                                            {section.tasks.map((task) => (
+                                              <li
+                                                key={task.id}
+                                                className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                                              >
+                                                <span className="font-medium text-foreground">
+                                                  {task.order != null
+                                                    ? `${task.order}. ${task.title}`
+                                                    : task.title}
+                                                </span>
+                                                <span className="text-muted-foreground">
+                                                  {task.description || "No description"}
+                                                </span>
+                                                {task.link && (
+                                                  <a
+                                                    href={task.link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="shrink-0 text-primary hover:underline"
+                                                    aria-label="Open link"
+                                                  >
+                                                    <ExternalLink className="size-3.5" />
+                                                  </a>
+                                                )}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
-                      {detailRow}
-                    </Fragment>
-                  );
-                }
+                    ) : null;
 
-                return (
-                  <Fragment key={agenda.id}>
-                    <TableRow
-                      className={cn(isDeleting && "opacity-50", "[&>td]:align-middle")}
-                    >
-                      {expandCell}
-                      <TableCell className="px-4">
-                        <span className="inline-flex h-6 w-8 items-center justify-center rounded bg-muted text-xs font-medium tabular-nums">
-                          {agenda.week}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 font-medium">
-                        <Link
-                          href={`/admin/agendas/${agenda.id}`}
-                          className="text-primary underline-offset-2 hover:underline focus-visible:underline"
-                        >
-                          {agenda.title}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="px-4 text-muted-foreground">
-                        {formatAgendaDate(agenda.start_date)}
-                      </TableCell>
-                      <TableCell className="px-4 text-muted-foreground">
-                        {formatAgendaDate(agenda.end_date)}
-                      </TableCell>
-                      <TableCell className="px-4 text-muted-foreground">
-                        <span className="line-clamp-1">
-                          {agenda.description}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="hidden items-center gap-1.5 sm:inline-flex">
-                            <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                              {agenda.sections?.length ?? 0}{" "}
-                              {(agenda.sections?.length ?? 0) === 1
-                                ? "section"
-                                : "sections"}
-                            </span>
-                            <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                              {taskCount} {taskCount === 1 ? "task" : "tasks"}
-                            </span>
-                          </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                disabled={isPending || isDeleting}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open row actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  beginEdit(agenda);
-                                }}
-                              >
-                                <Pencil className="size-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                disabled={isDeleting}
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  handleDeleteAgenda(agenda.id);
-                                }}
-                              >
-                                <Trash2 className="size-4" />
-                                {isDeleting ? "Deleting..." : "Delete"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                    {detailRow}
-                  </Fragment>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                    if (isEditing) {
+                      return (
+                        <Fragment key={agenda.id}>
+                          <TableRow className="bg-muted/40">
+                            <TableCell className="w-10 px-4" />
+                            <TableCell className="w-10 px-4" />
+                            {expandCell}
+                            <TableCell className="px-4 align-top">
+                              <Input
+                                type="number"
+                                min={1}
+                                value={editWeek}
+                                onChange={(e) => setEditWeek(e.target.value)}
+                                disabled={isPending}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 align-top">
+                              <Input
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                disabled={isPending}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 align-top">
+                              <Input
+                                type="date"
+                                value={editStartDate}
+                                onChange={(e) => setEditStartDate(e.target.value)}
+                                disabled={isPending}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 align-top">
+                              <Input
+                                type="date"
+                                value={editEndDate}
+                                onChange={(e) => setEditEndDate(e.target.value)}
+                                disabled={isPending}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 align-top">
+                              <textarea
+                                value={editDescription}
+                                onChange={(e) => setEditDescription(e.target.value)}
+                                disabled={isPending}
+                                rows={1}
+                                className="flex min-h-9.5 w-full resize-y rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 text-right align-top">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="ghost"
+                                  onClick={cancelEdit}
+                                  disabled={isPending}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  onClick={() => handleUpdateAgenda(agenda.id)}
+                                  disabled={isPending}
+                                >
+                                  {isPending ? "Saving..." : "Save"}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {detailRow}
+                        </Fragment>
+                      );
+                    }
+
+                    return (
+                      <SortableAgendaRow key={agenda.id} agendaId={agenda.id}>
+                        {({ setNodeRef, style, attributes, listeners }) => (
+                          <Fragment>
+                            <TableRow
+                              ref={setNodeRef}
+                              style={style}
+                              className={cn(
+                                isDeleting && "opacity-50",
+                                !agenda.enabled && "opacity-40",
+                                "[&>td]:align-middle",
+                              )}
+                            >
+                              <TableCell className="w-10 px-4 align-middle">
+                                <button
+                                  type="button"
+                                  className="cursor-grab text-muted-foreground active:cursor-grabbing"
+                                  disabled={isPending || isDeleting}
+                                  aria-label="Drag Agenda"
+                                  {...attributes}
+                                  {...listeners}
+                                >
+                                  <GripVertical className="h-4 w-4" />
+                                </button>
+                              </TableCell>
+
+                              <TableCell className="w-10 px-4 align-middle text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={agenda.enabled ?? true}
+                                  disabled={isPending}
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={(event) => {
+                                    const enabled = event.target.checked;
+
+                                    const updated = agendaItems.map((item) =>
+                                        item.id === agenda.id
+                                          ? {...item, enabled}
+                                          : item,
+                                    );
+
+                                    setAgendaItems(updated);
+
+                                    startTransition(async () => {
+                                      try {
+                                        await toggleAgenda(agenda.id, enabled);
+                                      } catch (error) {
+                                        setActionError(
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Failed to update agenda status.",
+                                        )
+                                      }
+                                    })
+                                  }}
+                                />
+                              </TableCell>
+
+                              {expandCell}
+
+                              <TableCell className="px-4">
+                                <span className="inline-flex h-6 w-8 items-center justify-center rounded bg-muted text-xs font-medium tabular-nums">
+                                  {agenda.enabled ? getDisplayWeek(agendaItems, agenda.id) : "N/A"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="px-4 font-medium">
+                                <Link
+                                  href={`/admin/agendas/${agenda.id}`}
+                                  className="text-primary underline-offset-2 hover:underline focus-visible:underline"
+                                >
+                                  {agenda.title}
+                                </Link>
+                              </TableCell>
+                              <TableCell className="px-4 text-muted-foreground">
+                                {formatAgendaDate(agenda.start_date)}
+                              </TableCell>
+                              <TableCell className="px-4 text-muted-foreground">
+                                {formatAgendaDate(agenda.end_date)}
+                              </TableCell>
+                              <TableCell className="px-4 text-muted-foreground">
+                                <span className="line-clamp-1">
+                                  {agenda.description}
+                                </span>
+                              </TableCell>
+                              <TableCell className="px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className="hidden items-center gap-1.5 sm:inline-flex">
+                                    <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                      {agenda.sections?.length ?? 0}{" "}
+                                      {(agenda.sections?.length ?? 0) === 1
+                                        ? "section"
+                                        : "sections"}
+                                    </span>
+                                    <span className="inline-flex rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                      {taskCount} {taskCount === 1 ? "task" : "tasks"}
+                                    </span>
+                                  </span>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        disabled={isPending || isDeleting}
+                                      >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Open row actions</span>
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        disabled={isPending || copyingId === agenda.id}
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                          handleCopyAgenda(agenda.id);
+                                        }}
+                                      >
+                                        <Copy className="size-4" />
+                                        {copyingId === agenda.id ? "Copying..." : "Copy"}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                          beginEdit(agenda);
+                                        }}
+                                      >
+                                        <Pencil className="size-4" />
+                                        Edit
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        disabled={isDeleting}
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                          handleDeleteAgenda(agenda.id);
+                                        }}
+                                      >
+                                        <Trash2 className="size-4" />
+                                        {isDeleting ? "Deleting..." : "Delete"}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+
+                            {detailRow}
+
+                          </Fragment>
+                        )}
+                      </SortableAgendaRow>
+                    );
+                  })}
+                </SortableContext>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </DndContext>
     </div>
   );
 }

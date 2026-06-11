@@ -38,6 +38,7 @@ type Agenda = {
   week: number;
   start_date: string;
   end_date: string;
+  enabled: boolean;
   sections: Section[];
 };
 
@@ -105,6 +106,7 @@ export default async function StudentAgendaPage({
       )
     `,
     )
+    .eq("enabled", true)
     .order("start_date", { ascending: true })
     .order("week", { ascending: true });
 
