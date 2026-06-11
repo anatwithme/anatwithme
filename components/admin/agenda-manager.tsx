@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { FormEvent, Fragment, useState, useTransition } from "react";
+import { FormEvent, Fragment, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAgenda,
@@ -161,6 +161,9 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   const [editEndDate, setEditEndDate] = useState("");
 
   const [agendaItems, setAgendaItems] = useState(agendas);
+  useEffect(() => {
+    setAgendaItems(agendas);
+  }, [agendas]);
 
   const [copyingId, setCopyingId] = useState<number | null>(null);
 

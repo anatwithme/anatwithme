@@ -109,7 +109,27 @@ export async function copyAgenda(agendaId: number) {
 
   const { data: originalAgenda, error: agendaFetchError } = await supabase
     .from("agenda")
-    .select("title, description, start_date, end_date, enabled")
+    .select(
+      `
+      title, 
+      description, 
+      start_date, 
+      end_date,
+      sections:section(
+        id,
+        title,
+        description,
+        type,
+        order,
+        tasks:task(
+          title,
+          description,
+          link,
+          order
+        )
+      )
+      `
+    )
     .eq("id", agendaId)
     .single();
 
@@ -117,18 +137,62 @@ export async function copyAgenda(agendaId: number) {
     throw new Error(`Error fetching agenda to copy: ${agendaFetchError?.message}`);
   }
 
-  const { error: insertAgendaError } = await supabase.from("agenda").insert({
-    title: `${originalAgenda.title} Copy`,
-    description: originalAgenda.description,
-    week: null,
-    start_date: originalAgenda.start_date,
-    end_date: originalAgenda.end_date,
-    enabled: false,
-  });
+  const { data: copiedAgenda, error: insertAgendaError } = await supabase
+    .from("agenda")
+    .insert({
+      title: `${originalAgenda.title} Copy`,
+      description: originalAgenda.description,
+      week: null,
+      start_date: originalAgenda.start_date,
+      end_date: originalAgenda.end_date,
+      enabled: false,
+    })
+    .select("id")
+    .single();
 
-  if (insertAgendaError) {
+  if (insertAgendaError || !copiedAgenda) {
     throw new Error(`Error copying agenda: ${insertAgendaError.message}`);
   }
+
+  const sections = originalAgenda.sections ?? [];
+
+  sections.forEach(async (section) => {
+    const { data: copiedSection, error: insertSectionError } = await supabase
+      .from("section")
+      .insert({
+        agenda_id: copiedAgenda.id,
+        title: section.title,
+        description: section.description,
+        type: section.type,
+        order: section.order,
+      })
+      .select("id")
+      .single()
+
+    if (insertSectionError || !copiedSection) {
+      throw new Error(`Error copying section: ${insertSectionError?.message}`);
+    }
+
+    const tasks = section.tasks ?? [];
+
+    if (tasks.length > 0) {
+      const copiedTasks = tasks.map((task) => ({
+        section_id: copiedSection.id,
+        title: task.title,
+        description: task.description,
+        link: task.link,
+        order: task.order,
+      }));
+
+      const { error: insertTaskError } = await supabase
+        .from("task")
+        .insert(copiedTasks);
+
+      if (insertTaskError) {
+        throw new Error(`Error copying task: ${insertTaskError?.message}`);
+      }
+    }
+  });
 
   revalidatePath("/admin/agendas");
 }
