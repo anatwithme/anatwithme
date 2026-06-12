@@ -409,34 +409,59 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
               group, and your availability page will stay informational.
             </StatusCallout>
           ) : (
-            <div className="rounded-lg border bg-muted/20 p-4 mt-4">
-              <div className="space-y-3 text-sm leading-6">
-                <h3 className="font-semibold">Group Study Agreement</h3>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <Label>Meeting format preference</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Choose how you prefer to meet with your study group.
+                  </p>
+               </div>
 
-                <p className="text-muted-foreground">
-                  By selecting Group study, you agree to participate respectfully,
-                  communicate with your assigned group, and make a good-faith effort to
-                  attend scheduled study sessions.
-                </p>
-
-                <label className="flex items-start gap-3 rounded-md border bg-background p-3">
-                  <input
-                    type="checkbox"
-                    name="group_study_agreement_accepted"
-                    value="true"
-                    defaultChecked={groupStudyAgreementAccepted}
-                    disabled={isPending}
-                    className="mt-1"
-                  />
-
-                  <span>
-                    I understand and agree to participate in group studying under these
-                    expectations.
-                  </span>
-                </label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {PREFERENCE_OPTIONS.map((option) => (
+                    <ChoiceCard
+                      key={option.value}
+                      name="preference"
+                      value={option.value}
+                      checked={preference === option.value}
+                      onSelect={() => setPreference(option.value)}
+                      disabled={isPending}
+                      title={option.label}
+                      description={option.description}
+                      compact
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <div className="space-y-3 text-sm leading-6">
+                  <h3 className="font-semibold">Group Study Agreement</h3>
+
+                  <p className="text-muted-foreground">
+                    By selecting Group study, you agree to participate respectfully,
+                    communicate with your assigned group, and make a good-faith effort to
+                    attend scheduled study sessions.
+                  </p>
+
+                  <label className="flex items-start gap-3 rounded-md border bg-background p-3">
+                    <input
+                      type="checkbox"
+                      name="group_study_agreement_accepted"
+                      value="true"
+                      defaultChecked={groupStudyAgreementAccepted}
+                      disabled={isPending}
+                      className="mt-1"
+                    />
+                    <span className="mt-1">
+                      I understand and agree to participate in group studying under these
+                      expectations.
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>)}
         </CardContent>
       </Card>
 
