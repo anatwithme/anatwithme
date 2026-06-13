@@ -134,8 +134,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       return;
     }
 
-    const groupAgreementChecked = new FormData(e.currentTarget).get("group_study_agreement_accepted") === "true";
-    if (studyMode === "group" && !groupAgreementChecked) {
+    if (studyMode === "group" && !groupStudyAgreementAccepted) {
       setToast({
         type: "error",
         text: "You must accept the group study agreement to join a group.",
@@ -149,7 +148,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     safe.set("preference", preference);
     safe.set("study_mode", studyMode);
     safe.set("bio", bio);
-    safe.set("group_study_agreement_accepted", groupAgreementChecked ? "true" : "false");
+    safe.set("group_study_agreement_accepted", groupStudyAgreementAccepted ? "true" : "false");
     if (selectedFile) {
       safe.set("avatar", selectedFile);
     }
@@ -395,7 +394,10 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
               name="study_mode"
               value="independent"
               checked={studyMode === "independent"}
-              onSelect={() => setStudyMode("independent")}
+              onSelect={() => {
+                setStudyMode("independent");
+                setGroupStudyAgreementAccepted(false);
+              }}
               disabled={isPending || isLockedToGroup}
               icon={<BookOpen className="h-4 w-4" />}
               title="Independent study"
@@ -449,9 +451,9 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
                     <input
                       type="checkbox"
                       name="group_study_agreement_accepted"
-                      value="true"
-                      defaultChecked={groupStudyAgreementAccepted}
+                      checked={groupStudyAgreementAccepted}
                       disabled={isPending}
+                      onChange={(e) => setGroupStudyAgreementAccepted(e.target.checked)}
                       className="mt-1"
                     />
                     <span className="mt-1">
