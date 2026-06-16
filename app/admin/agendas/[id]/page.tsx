@@ -28,6 +28,7 @@ type Agenda = {
   title: string;
   description: string | null;
   week: number;
+  unitValue: number | null;
   sections: Section[];
 };
 

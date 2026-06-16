@@ -30,6 +30,7 @@ type Agenda = {
   start_date: string;
   end_date: string;
   enabled: boolean;
+  unitValue: number | null;
   sections?: Section[];
 };
 
