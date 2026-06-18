@@ -8,6 +8,7 @@ import {
   buildCompletedTaskSet,
   getCompletedTaskIdsForAgenda,
 } from "@/lib/progress";
+import { getDefaultAgendaId } from "../../../lib/agenda-selection";
 import { createClient } from "@/lib/supabase/server";
 
 type Task = {
@@ -187,18 +188,12 @@ export default async function StudentAgendaPage({
     Number.isInteger(requestedAgendaId) &&
     agendaSummaries.some((agenda) => agenda.id === requestedAgendaId);
 
-  const earliestIncompleteAgenda = agendaSummaries.find(
-    (agenda) => agenda.totalTasks > 0 && agenda.studentProgressPercent < 100,
-  );
-
-  const defaultAgendaId =
-    earliestIncompleteAgenda?.id ??
-    agendaSummaries[agendaSummaries.length - 1]?.id ??
-    agendaSummaries[0].id;
-
-  const selectedAgendaId = hasExplicitSelection
-    ? requestedAgendaId
-    : defaultAgendaId;
+  const selectedAgendaId = getDefaultAgendaId({
+    agendas,
+    agendaSummaries,
+    requestedAgendaId,
+    today: new Date().toISOString().slice(0, 10),
+  });
 
   const selectedAgenda =
     agendas.find((agenda) => agenda.id === selectedAgendaId) ?? agendas[0];
