@@ -10,6 +10,7 @@ export type ManualGroupFormInput = {
 
 export type ManualGroupInput = ManualGroupFormInput & {
   studentIds: string[];
+  roomId?: number | null;
   overrideWarnings?: boolean;
 };
 
