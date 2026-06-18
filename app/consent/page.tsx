@@ -14,8 +14,7 @@ export default function ConsentPage() {
                 <div className="space-y-4 text-sm leading-6">
                     <p>
                         Anatwithme is being used as part of a research study. This study may analyze information 
-                        collected through your use of this website, such as profile information, availability,
-                        group participation, agenda activity, and progress data.
+                        collected through your use of this website, such as agenda activity and progress data.
                     </p>
 
                     <p>
