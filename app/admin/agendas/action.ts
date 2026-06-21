@@ -162,3 +162,65 @@ export async function toggleAgenda(agendaId: number, enabled: boolean) {
 
   revalidatePath("/admin/agendas");
 }
+
+export async function applyDatesToActiveAgendas( 
+  semesterStartDate: string, 
+  semesterEndDate: string, 
+) {
+  const supabase = await createClient();
+
+  const semesterStart = new Date(`${semesterStartDate}T00:00:00`);
+  const semesterEnd = new Date(`${semesterEndDate}T00:00:00`);
+
+  if (Number.isNaN(semesterStart.getTime()) || Number.isNaN(semesterEnd.getTime())) {
+    throw new Error("Invalid semester dates.");
+  }
+
+  if (semesterEnd < semesterStart) {
+    throw new Error("Semester end date must be after semester start date.");
+  }
+
+  const { data: agendas, error} = await supabase
+    .from("agenda")
+    .select("id")
+    .eq("enabled", true)
+    .order("week", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load active agendas: ${error?.message}`);
+  }
+
+  const updates = agendas.map((agenda, index) => {
+    const start = new Date(`${semesterStartDate}T00:00:00`);
+    start.setDate(start.getDate() + index * 7);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    if (end > semesterEnd) {
+      throw new Error(`The number of active agendas surpasses the number of weeks in the date range you have provided.`)
+    }
+
+    return {
+      id: agenda.id,
+      start_date: start.toISOString().slice(0, 10),
+      end_date: end.toISOString().slice(0, 10),
+    };
+  });
+
+  for (const update of updates) {
+    const { error: updateError } = await supabase
+      .from("agenda")
+      .update({
+        start_date: update.start_date,
+        end_date: update.end_date,
+      })
+      .eq("id", update.id);
+
+    if (updateError) {
+      throw new Error(`Failed to update agenda dates: ${updateError?.message}`);
+    }
+  }
+
+  revalidatePath("/admin/agendas");
+}
