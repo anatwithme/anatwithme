@@ -37,6 +37,7 @@ type Agenda = {
   title: string;
   description: string | null;
   week: number;
+  unitValue: number | null;
   start_date: string;
   end_date: string;
   enabled: boolean;
@@ -59,6 +60,8 @@ type Props = {
   agenda: Agenda;
   agendaSummaries: AgendaSummary[];
   selectedAgendaId: number;
+  selectedUnit: number | null;
+  availableUnits: number[];
   hasExplicitSelection: boolean;
   completedTaskIds: number[];
   studentProgressPercent: number;
@@ -112,6 +115,8 @@ export default function StudentAgendaBoard({
   agenda,
   agendaSummaries,
   selectedAgendaId,
+  selectedUnit,
+  availableUnits,
   hasExplicitSelection,
   completedTaskIds,
   studentProgressPercent,
@@ -126,6 +131,7 @@ export default function StudentAgendaBoard({
   const [expandedSectionIds, setExpandedSectionIds] = useState<Set<number>>(
     new Set(sortByOrder(agenda.sections).map((section) => section.id)),
   );
+  const [viewMode, setViewMode] = useState<"week" | "unit">("week");
   const [isPending, startTransition] = useTransition();
 
   const completedSet = useMemo(
@@ -189,7 +195,15 @@ export default function StudentAgendaBoard({
 
   const changeAgenda = (agendaId: number) => {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("unit");
     params.set("agenda", String(agendaId));
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const changeUnit = (unit: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("agenda");
+    params.set("unit", String(unit));
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -220,24 +234,63 @@ export default function StudentAgendaBoard({
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex-1">
-            <label
-              htmlFor="agenda-selector"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              Week
-            </label>
-            <select
-              id="agenda-selector"
-              value={selectedAgendaId}
-              onChange={(e) => changeAgenda(Number(e.target.value))}
-              className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
-            >
-              {agendaSummaries.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">
+                {viewMode === "week" ? "Week" : "Unit"}
+              </span>
+              <div className="flex rounded-full border border-gray-300 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("week")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    viewMode === "week"
+                      ? "bg-[#BB0000] text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("unit")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    viewMode === "unit"
+                      ? "bg-[#BB0000] text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Unit
+                </button>
+              </div>
+            </div>
+            {viewMode === "week" ? (
+              <select
+                id="agenda-selector"
+                value={selectedAgendaId}
+                onChange={(e) => changeAgenda(Number(e.target.value))}
+                className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+              >
+                {agendaSummaries.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {viewMode === "unit" ? (
+              <select
+                id="unit-selector"
+                value={selectedUnit ?? ""}
+                onChange={(e) => changeUnit(Number(e.target.value))}
+                className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+              >
+                {availableUnits.map((unit) => (
+                  <option key={unit} value={unit}>
+                    Unit {unit}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -263,8 +316,15 @@ export default function StudentAgendaBoard({
           </div>
         </div>
 
-        <div className="mt-3 text-sm text-gray-500">
-          {formatDate(agenda.start_date)} - {formatDate(agenda.end_date)}
+        <div className="mt-3 space-y-2 text-sm text-gray-500">
+          {viewMode === "week" ? (
+            <div>
+              {formatDate(agenda.start_date)} - {formatDate(agenda.end_date)}
+            </div>
+          ) : null}
+          <div className="text-sm text-gray-500">
+            Display mode: <span className="font-medium text-gray-900">{viewMode === "week" ? "Week" : "Unit"}</span>
+          </div>
         </div>
       </div>
 
