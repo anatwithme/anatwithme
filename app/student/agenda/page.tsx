@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 
+import ExamReminderBanner from "@/components/student/exam-reminder-banner";
 import StudentAgendaBoard from "@/components/student/student-agenda-board";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -94,6 +95,22 @@ export default async function StudentAgendaPage({
   const memberIds = (membersData ?? []).map(
     (member: GroupMember) => member.user_id,
   );
+  
+  const { data: examData } = await supabase
+    .from("exam")
+    .select("*")
+    .gte("exam_date", new Date().toISOString().split("T")[0])
+    .order("exam_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const daysUntilExam = examData
+    ? Math.ceil(
+        (new Date(examData.exam_date).getTime() - new Date().setHours(0, 0, 0, 0)) /
+          (1000 * 60 * 60 * 24),
+      )
+    : null;
+
 
   const { data: agendasData, error: agendasError } = await supabase
     .from("agenda")
@@ -219,6 +236,9 @@ export default async function StudentAgendaPage({
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
       <AgendaHeader />
+      {examData && daysUntilExam !== null && daysUntilExam <= 7 && (
+        <ExamReminderBanner examTitle={examData.title} daysUntilExam={daysUntilExam} />
+      )}
       <StudentAgendaBoard
         agenda={selectedAgenda}
         agendaSummaries={agendaSummaries}
