@@ -234,7 +234,7 @@ export default function StudentAgendaBoard({
             >
               {agendaSummaries.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.title}
+                  {item.title} - ({formatDate(item.start_date)} - {formatDate(item.end_date)})
                 </option>
               ))}
             </select>
