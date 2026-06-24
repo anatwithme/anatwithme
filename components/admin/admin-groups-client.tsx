@@ -149,12 +149,20 @@ type UngroupedStudent = {
   profile_picture_url: string | null;
 };
 
+
+type RoomOption = {
+  id: number;
+  building: string | null;
+  room_number: string | null;
+};
+
 type CreateGroupFormState = {
   dayOfWeek: number;
   meetStartTime: string;
   preference: GroupPreference;
   studentIds: string[];
   groupName: string;
+  roomId?: number | null;
 };
 
 type StudentSelectOption = UngroupedStudent & {
@@ -276,15 +284,18 @@ function getDefaultCreateFormState(): CreateGroupFormState {
     preference: "in_person",
     studentIds: [],
     groupName: "",
+    roomId: null,
   };
 }
 
 export default function AdminGroupsClient({
   groups,
+  rooms,
   ungroupedStudents,
   independentStudents,
 }: {
   groups: Group[];
+  rooms: RoomOption[];
   ungroupedStudents: UngroupedStudent[];
   independentStudents: UngroupedStudent[];
 }) {
@@ -478,6 +489,7 @@ export default function AdminGroupsClient({
       preference: (group.preference ?? "in_person") as GroupPreference,
       groupName: group.group_name ?? "",
       studentIds: group.member_of.map((member) => member.user_id),
+      roomId: group.room_id ?? null,
     });
     setEditGroupOpen(true);
   }
@@ -636,6 +648,7 @@ export default function AdminGroupsClient({
         preference: editForm.preference,
         groupName: editForm.groupName,
         studentIds: editForm.studentIds,
+        roomId: editForm.preference === "in_person" ? editForm.roomId : null,
         overrideWarnings,
       });
 
@@ -1027,10 +1040,12 @@ export default function AdminGroupsClient({
             value={editForm.preference}
             disabled={updatingGroup}
             onChange={(event) => {
+              const nextPreference = event.target.value as GroupPreference;
               setEditWarnings([]);
               setEditForm((current) => ({
                 ...current,
-                preference: event.target.value as GroupPreference,
+                preference: nextPreference,
+                roomId: nextPreference === "online" ? null : current.roomId,
               }));
             }}
           >
@@ -1038,6 +1053,35 @@ export default function AdminGroupsClient({
             <option value="online">Online</option>
           </select>
         </div>
+
+        {editForm.preference === "in_person" ? (
+          <div className="space-y-2">
+            <Label htmlFor="edit-group-room">Room</Label>
+            <select
+              id="edit-group-room"
+              className={FIELD_CLASSNAME}
+              value={editForm.roomId ?? ""}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  roomId: event.target.value ? Number(event.target.value) : null,
+                }));
+              }}
+            >
+              <option value="">Auto assign room</option>
+              {rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.building ?? "Unknown"} {room.room_number ?? ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-sm">
+              Choose a specific room for this in-person group, or leave blank to let the system automatically assign one.
+            </p>
+          </div>
+        ) : null}
 
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
           <p className="font-medium">Meeting preview</p>

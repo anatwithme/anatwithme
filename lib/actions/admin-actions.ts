@@ -925,21 +925,46 @@ export async function updateManualGroup(
       return existingUsageResult;
     }
 
-    const assignmentPlan = assignRoomsToGroups(
-      [
-        {
-          preference: "in_person",
-          dayOfWeek: validation.value.dayOfWeek,
-          meetStartTime: validation.value.meetStartTime,
-        },
-      ],
-      roomInventoryResult.rooms,
-      existingUsageResult.usage,
-      false,
-    );
+    if (input.roomId != null) {
+      const targetRoom = roomInventoryResult.rooms.find(
+        (room) => room.id === input.roomId,
+      );
+      if (!targetRoom) {
+        return { error: "Selected room not found." };
+      }
 
-    manualRoomId = assignmentPlan.assignments[0]?.roomId ?? null;
-    manualRoomOverbooked = assignmentPlan.assignments[0]?.overbooked ?? false;
+      if (!targetRoom.availableDays.includes(validation.value.dayOfWeek)) {
+        return { error: "Selected room is not available on the chosen day." };
+      }
+
+      const conflictingGroups = existingUsageResult.usage.filter(
+        (usage) =>
+          usage.roomId === input.roomId &&
+          usage.dayOfWeek === validation.value.dayOfWeek &&
+          usage.meetStartTime === validation.value.meetStartTime,
+      );
+
+      manualRoomId = targetRoom.id;
+      manualRoomOverbooked =
+        conflictingGroups.length + 1 >
+        (targetRoom.groupCapacity ?? DEFAULT_ROOM_GROUP_CAPACITY);
+    } else {
+      const assignmentPlan = assignRoomsToGroups(
+        [
+          {
+            preference: "in_person",
+            dayOfWeek: validation.value.dayOfWeek,
+            meetStartTime: validation.value.meetStartTime,
+          },
+        ],
+        roomInventoryResult.rooms,
+        existingUsageResult.usage,
+        false,
+      );
+
+      manualRoomId = assignmentPlan.assignments[0]?.roomId ?? null;
+      manualRoomOverbooked = assignmentPlan.assignments[0]?.overbooked ?? false;
+    }
   }
 
   const { data: currentMembers, error: currentMemberError } = await supabase
