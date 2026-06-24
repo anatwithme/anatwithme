@@ -33,6 +33,7 @@ export default async function AdminGroupsPage() {
     .select(
       `
       id,
+      group_name,
       preference,
       day_of_week,
       meet_start_time,

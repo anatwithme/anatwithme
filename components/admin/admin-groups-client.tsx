@@ -82,6 +82,7 @@ type GroupMember = {
 
 type Group = {
   id: string;
+  group_name?: string | null;
   preference: string | null;
   day_of_week: number | null;
   meet_start_time: string;
@@ -153,6 +154,7 @@ type CreateGroupFormState = {
   meetStartTime: string;
   preference: GroupPreference;
   studentIds: string[];
+  groupName: string;
 };
 
 type StudentSelectOption = UngroupedStudent & {
@@ -273,6 +275,7 @@ function getDefaultCreateFormState(): CreateGroupFormState {
     meetStartTime: `${GROUP_TIME_OPTIONS[0]}:00`,
     preference: "in_person",
     studentIds: [],
+    groupName: "",
   };
 }
 
@@ -473,6 +476,7 @@ export default function AdminGroupsClient({
       dayOfWeek: group.day_of_week ?? 0,
       meetStartTime: group.meet_start_time,
       preference: (group.preference ?? "in_person") as GroupPreference,
+      groupName: group.group_name ?? "",
       studentIds: group.member_of.map((member) => member.user_id),
     });
     setEditGroupOpen(true);
@@ -579,6 +583,7 @@ export default function AdminGroupsClient({
         meetStartTime: createMeeting.meetStartTime,
         meetEndTime: createMeeting.meetEndTime,
         preference: createForm.preference,
+        groupName: createForm.groupName,
         studentIds: createForm.studentIds,
         overrideWarnings,
       });
@@ -629,6 +634,7 @@ export default function AdminGroupsClient({
         meetStartTime: editForm.meetStartTime,
         meetEndTime: editMeeting.meetEndTime,
         preference: editForm.preference,
+        groupName: editForm.groupName,
         studentIds: editForm.studentIds,
         overrideWarnings,
       });
@@ -748,6 +754,23 @@ export default function AdminGroupsClient({
         onClose={closeCreateGroupDialog}
       >
         <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 space-y-2">
+            <Label htmlFor="create-group-name">Group name</Label>
+            <Input
+              id="create-group-name"
+              className={FIELD_CLASSNAME}
+              value={createForm.groupName}
+              disabled={creatingGroup}
+              onChange={(event) => {
+                setCreateWarnings([]);
+                setCreateForm((current) => ({
+                  ...current,
+                  groupName: event.target.value,
+                }));
+              }}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="create-group-day">Day of week</Label>
             <select
@@ -922,6 +945,23 @@ export default function AdminGroupsClient({
         onClose={closeEditGroupDialog}
       >
         <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 space-y-2">
+            <Label htmlFor="edit-group-name">Group name</Label>
+            <Input
+              id="edit-group-name"
+              className={FIELD_CLASSNAME}
+              value={editForm.groupName}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  groupName: event.target.value,
+                }));
+              }}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-group-day">Day of week</Label>
             <select
@@ -1545,6 +1585,7 @@ export default function AdminGroupsClient({
           <Table>
             <colgroup>
               <col className="w-10" />
+              <col className="w-[20rem]" />
               <col className="w-[22rem]" />
               <col className="w-[14rem]" />
               <col className="w-[10rem]" />
@@ -1555,6 +1596,7 @@ export default function AdminGroupsClient({
             <TableHeader>
               <TableRow className="bg-muted/100">
                 <TableHead className="w-10 px-4" aria-label="Expand" />
+                <TableHead className="px-4">Group name</TableHead>
                 <TableHead className="px-4">Meeting</TableHead>
                 <TableHead className="px-4">Room</TableHead>
                 <TableHead className="px-4">Preference</TableHead>
@@ -1630,6 +1672,13 @@ export default function AdminGroupsClient({
                             <ChevronDown className="h-4 w-4" />
                           )}
                         </Button>
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <div className="whitespace-normal">
+                          <div className="font-medium">
+                            {group.group_name ?? "Untitled group"}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="px-4">
                         <div className="space-y-0.5 whitespace-normal">
@@ -1722,7 +1771,7 @@ export default function AdminGroupsClient({
                         className="bg-muted/5 hover:bg-muted/5"
                       >
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="bg-muted/100 px-4 py-0"
                         >
                           <div className="ml-10 px-4 py-3">
