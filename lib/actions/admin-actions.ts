@@ -780,6 +780,7 @@ export async function createManualGroup(
   const { data: newGroup, error: groupError } = await supabase
     .from("group")
     .insert({
+      group_name: validation.value.groupName,
       preference: validation.value.preference,
       day_of_week: validation.value.dayOfWeek,
       meet_start_time: validation.value.meetStartTime,
@@ -992,6 +993,7 @@ export async function updateManualGroup(
   const { error: updateError } = await supabase
     .from("group")
     .update({
+      group_name: validation.value.groupName,
       preference: validation.value.preference,
       day_of_week: validation.value.dayOfWeek,
       meet_start_time: validation.value.meetStartTime,
