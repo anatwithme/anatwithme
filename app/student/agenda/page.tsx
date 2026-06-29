@@ -251,14 +251,15 @@ export default async function StudentAgendaPage({
       <AgendaHeader />
       <StudentAgendaBoard
         agenda={selectedAgenda}
+        allAgendas={agendas}
         agendaSummaries={agendaSummaries}
         selectedAgendaId={selectedAgenda.id}
         selectedUnit={selectedUnit}
         availableUnits={availableUnits}
         hasExplicitSelection={hasExplicitAgendaSelection}
-        completedTaskIds={completedTaskIdsForSelectedAgenda}
-        studentProgressPercent={selectedSummary.studentProgressPercent}
-        groupProgressPercent={selectedSummary.groupProgressPercent}
+        myCompletedTaskSet={myCompletedTaskSet}
+        groupCompletions={groupCompletions ?? []}
+        memberIds={memberIds}
         hasGroup={Boolean(membership)}
         overallProgressPercent={overallProgressPercent}
       />

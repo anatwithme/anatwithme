@@ -58,14 +58,22 @@ type AgendaSummary = {
 
 type Props = {
   agenda: Agenda;
+  // All agendas are required when the board switches to unit view,
+  // so we can surface all sections for the selected unit.
+  allAgendas: Agenda[];
   agendaSummaries: AgendaSummary[];
   selectedAgendaId: number;
   selectedUnit: number | null;
   availableUnits: number[];
   hasExplicitSelection: boolean;
-  completedTaskIds: number[];
-  studentProgressPercent: number;
-  groupProgressPercent: number;
+  myCompletedTaskSet: Set<number>;
+  // Group completion records are used to compute group progress percentage.
+  groupCompletions: Array<{
+    user_id: string;
+    task_id: number;
+    completed: boolean;
+  }>;
+  memberIds: string[];
   hasGroup?: boolean;
   overallProgressPercent: number;
 };
@@ -113,14 +121,15 @@ function ProgressBar({
 
 export default function StudentAgendaBoard({
   agenda,
+  allAgendas,
   agendaSummaries,
   selectedAgendaId,
   selectedUnit,
   availableUnits,
   hasExplicitSelection,
-  completedTaskIds,
-  studentProgressPercent,
-  groupProgressPercent,
+  myCompletedTaskSet,
+  groupCompletions,
+  memberIds,
   hasGroup = false,
   overallProgressPercent,
 }: Props) {
@@ -134,19 +143,66 @@ export default function StudentAgendaBoard({
   const [viewMode, setViewMode] = useState<"week" | "unit">("week");
   const [isPending, startTransition] = useTransition();
 
+  // Use the already-constructed completed task set so we don't recreate
+  // a new collection unnecessarily when the prop already provides one.
   const completedSet = useMemo(
-    () => new Set(completedTaskIds),
-    [completedTaskIds],
+    () => myCompletedTaskSet,
+    [myCompletedTaskSet],
   );
 
   const sections = useMemo(
-    () =>
-      sortByOrder(agenda.sections ?? []).map((section) => ({
+    () => {
+      let agendaSectionsToUse: Section[] = [];
+      
+      if (viewMode === "unit" && selectedUnit !== null) {
+        // In unit mode: collect sections from all agendas matching the selected unit
+        const agendasInUnit = allAgendas.filter(
+          (a) => a.unitValue === selectedUnit
+        );
+        agendasInUnit.forEach((a) => {
+          agendaSectionsToUse.push(...(a.sections ?? []));
+        });
+      } else {
+        // In week mode: use sections from the single selected agenda
+        agendaSectionsToUse = agenda.sections ?? [];
+      }
+      
+      return sortByOrder(agendaSectionsToUse).map((section) => ({
         ...section,
         tasks: sortByOrder(section.tasks ?? []),
-      })),
-    [agenda.sections],
+      }));
+    },
+    [agenda.sections, viewMode, selectedUnit, allAgendas],
   );
+
+  // Calculate progress based on current sections (which change by unit/week mode)
+  const { studentProgressPercent, groupProgressPercent } = useMemo(() => {
+    const taskIdsInSections = sections.flatMap((section) =>
+      section.tasks.map((task) => task.id),
+    );
+    
+    const completedTaskCount = taskIdsInSections.filter((taskId) =>
+      myCompletedTaskSet.has(taskId),
+    ).length;
+    
+    const studentProgress = taskIdsInSections.length > 0
+      ? Math.round((completedTaskCount / taskIdsInSections.length) * 100)
+      : 0;
+    
+    // Calculate group progress based on member completions for all visible tasks.
+    const groupCompleted = groupCompletions.filter(
+      (completion) =>
+        completion.completed && taskIdsInSections.includes(completion.task_id),
+    ).length;
+    
+    // Total possible group completions is members times visible tasks.
+    const totalPossibleGroupCompletions = memberIds.length * taskIdsInSections.length;
+    const groupProgress = totalPossibleGroupCompletions > 0
+      ? Math.round((groupCompleted / totalPossibleGroupCompletions) * 100)
+      : 0;
+    
+    return { studentProgressPercent: studentProgress, groupProgressPercent: groupProgress };
+  }, [sections, myCompletedTaskSet, groupCompletions, memberIds]);
 
   const selectedIndex = agendaSummaries.findIndex(
     (item) => item.id === selectedAgendaId,
@@ -160,10 +216,25 @@ export default function StudentAgendaBoard({
       : null;
 
   useEffect(() => {
+    let sectionsToExpand: Section[] = [];
+    
+    if (viewMode === "unit" && selectedUnit !== null) {
+      // In unit mode: expand all sections from agendas in the unit
+      const agendasInUnit = allAgendas.filter(
+        (a) => a.unitValue === selectedUnit
+      );
+      agendasInUnit.forEach((a) => {
+        sectionsToExpand.push(...(a.sections ?? []));
+      });
+    } else {
+      // In week mode: expand all sections from the selected agenda
+      sectionsToExpand = agenda.sections ?? [];
+    }
+    
     setExpandedSectionIds(
-      new Set(sortByOrder(agenda.sections ?? []).map((section) => section.id)),
+      new Set(sortByOrder(sectionsToExpand).map((section) => section.id)),
     );
-  }, [agenda.id, agenda.sections]);
+  }, [agenda.id, agenda.sections, viewMode, selectedUnit, allAgendas]);
 
   useEffect(() => {
     localStorage.setItem(LAST_AGENDA_STORAGE_KEY, String(selectedAgendaId));
@@ -334,7 +405,9 @@ export default function StudentAgendaBoard({
             <div>
               <h2 className="text-2xl font-semibold text-gray-900">Sections</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Scroll sideways to move through the week’s sections and tasks.
+                {viewMode === "unit"
+                  ? `All sections for Unit ${selectedUnit}`
+                  : "Scroll sideways to move through the week's sections and tasks."}
               </p>
             </div>
 
@@ -490,14 +563,22 @@ export default function StudentAgendaBoard({
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Progress</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Track how you and your group are doing for this week.
+                {viewMode === "unit"
+                  ? `Track how you and your group are doing for Unit ${selectedUnit}.`
+                  : "Track how you and your group are doing for this week."}
               </p>
             </div>
 
             <div className="mt-8 space-y-6">
-              <ProgressBar label="Your Progress" percent={studentProgressPercent} />
+              <ProgressBar 
+                label={viewMode === "unit" ? `Your Progress (Unit ${selectedUnit})` : "Your Progress"} 
+                percent={studentProgressPercent} 
+              />
               {hasGroup ? (
-                <ProgressBar label="Group Progress" percent={groupProgressPercent} />
+                <ProgressBar 
+                  label={viewMode === "unit" ? `Group Progress (Unit ${selectedUnit})` : "Group Progress"} 
+                  percent={groupProgressPercent} 
+                />
               ) : null}
               <ProgressBar label="Overall Course Progress" percent={overallProgressPercent} />
             </div>
