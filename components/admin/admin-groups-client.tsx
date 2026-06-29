@@ -8,6 +8,7 @@ import {
   CircleAlert,
   CircleCheck,
   MoreHorizontal,
+  Pencil,
   Plus,
   RefreshCcw,
   Trash2,
@@ -30,6 +31,7 @@ import {
   deleteGroup,
   removeStudentFromGroup,
   runMatchingAction,
+  updateManualGroup,
 } from "@/lib/actions/admin-actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,6 +82,7 @@ type GroupMember = {
 
 type Group = {
   id: string;
+  group_name?: string | null;
   preference: string | null;
   day_of_week: number | null;
   meet_start_time: string;
@@ -146,11 +149,24 @@ type UngroupedStudent = {
   profile_picture_url: string | null;
 };
 
+
+type RoomOption = {
+  id: number;
+  building: string | null;
+  room_number: string | null;
+};
+
 type CreateGroupFormState = {
   dayOfWeek: number;
   meetStartTime: string;
   preference: GroupPreference;
   studentIds: string[];
+  groupName: string;
+  roomId?: number | null;
+};
+
+type StudentSelectOption = UngroupedStudent & {
+  fromCurrentGroup?: boolean;
 };
 
 const FIELD_CLASSNAME =
@@ -267,15 +283,19 @@ function getDefaultCreateFormState(): CreateGroupFormState {
     meetStartTime: `${GROUP_TIME_OPTIONS[0]}:00`,
     preference: "in_person",
     studentIds: [],
+    groupName: "",
+    roomId: null,
   };
 }
 
 export default function AdminGroupsClient({
   groups,
+  rooms,
   ungroupedStudents,
   independentStudents,
 }: {
   groups: Group[];
+  rooms: RoomOption[];
   ungroupedStudents: UngroupedStudent[];
   independentStudents: UngroupedStudent[];
 }) {
@@ -308,6 +328,13 @@ export default function AdminGroupsClient({
     [],
   );
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [editGroupOpen, setEditGroupOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [editForm, setEditForm] = useState<CreateGroupFormState>(() =>
+    getDefaultCreateFormState(),
+  );
+  const [editWarnings, setEditWarnings] = useState<CompatibilityWarning[]>([]);
+  const [updatingGroup, setUpdatingGroup] = useState(false);
   const [assigningStudent, setAssigningStudent] =
     useState<UngroupedStudent | null>(null);
   const [assignGroupId, setAssignGroupId] = useState<string>("");
@@ -363,6 +390,7 @@ export default function AdminGroupsClient({
   const busy =
     loading ||
     creatingGroup ||
+    updatingGroup ||
     assigningToGroup ||
     deletingGroupId !== null ||
     removingMemberKey !== null;
@@ -372,8 +400,41 @@ export default function AdminGroupsClient({
     meetEndTime: getEndTimeFromStart(createForm.meetStartTime),
     preference: createForm.preference,
   };
+  const editMeeting = {
+    dayOfWeek: editForm.dayOfWeek,
+    meetStartTime: editForm.meetStartTime,
+    meetEndTime: getEndTimeFromStart(editForm.meetStartTime),
+    preference: editForm.preference,
+  };
   const selectedAssignGroup =
     groups.find((group) => group.id === assignGroupId) ?? groups[0] ?? null;
+
+  const editStudentCandidates: StudentSelectOption[] = (() => {
+    if (!editingGroup) {
+      return ungroupedStudents;
+    }
+
+    const currentMembers = editingGroup.member_of.map((member) => {
+      const profile = getMemberProfile(member);
+      return {
+        user_id: member.user_id,
+        full_name: profile?.full_name ?? "Unknown",
+        email: profile?.email ?? null,
+        phone: null,
+        preference: "no_preference" as const,
+        study_mode: "group" as const,
+        profile_picture_url: null,
+        fromCurrentGroup: true,
+      };
+    });
+
+    const additionalCandidates = ungroupedStudents.filter(
+      (student) =>
+        !currentMembers.some((member) => member.user_id === student.user_id),
+    );
+
+    return [...currentMembers, ...additionalCandidates];
+  })();
 
   useEffect(() => {
     if (!assigningStudent) {
@@ -409,6 +470,28 @@ export default function AdminGroupsClient({
     setAssignWarnings([]);
     setAssigningStudent(student);
     setAssignGroupId(groups[0]?.id ?? "");
+  }
+
+  function closeEditGroupDialog() {
+    setEditGroupOpen(false);
+    setEditingGroup(null);
+    setEditWarnings([]);
+    setEditForm(getDefaultCreateFormState());
+  }
+
+  function openEditGroupDialog(group: Group) {
+    setError(null);
+    setEditWarnings([]);
+    setEditingGroup(group);
+    setEditForm({
+      dayOfWeek: group.day_of_week ?? 0,
+      meetStartTime: group.meet_start_time,
+      preference: (group.preference ?? "in_person") as GroupPreference,
+      groupName: group.group_name ?? "",
+      studentIds: group.member_of.map((member) => member.user_id),
+      roomId: group.room_id ?? null,
+    });
+    setEditGroupOpen(true);
   }
 
   function closeDeleteDialog() {
@@ -512,6 +595,7 @@ export default function AdminGroupsClient({
         meetStartTime: createMeeting.meetStartTime,
         meetEndTime: createMeeting.meetEndTime,
         preference: createForm.preference,
+        groupName: createForm.groupName,
         studentIds: createForm.studentIds,
         overrideWarnings,
       });
@@ -540,6 +624,58 @@ export default function AdminGroupsClient({
       errorTimerRef.current = setTimeout(() => setError(null), 8000);
     } finally {
       setCreatingGroup(false);
+    }
+  }
+
+  async function handleUpdateGroup(overrideWarnings = false) {
+    if (!editingGroup) {
+      setError("Choose a group to edit first.");
+      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      return;
+    }
+
+    setUpdatingGroup(true);
+    setError(null);
+    setSuccessMessage(null);
+    clearErrorTimer();
+    clearSuccessTimer();
+
+    try {
+      const result = await updateManualGroup(editingGroup.id, {
+        dayOfWeek: editForm.dayOfWeek,
+        meetStartTime: editForm.meetStartTime,
+        meetEndTime: editMeeting.meetEndTime,
+        preference: editForm.preference,
+        groupName: editForm.groupName,
+        studentIds: editForm.studentIds,
+        roomId: editForm.preference === "in_person" ? editForm.roomId : null,
+        overrideWarnings,
+      });
+
+      if ("error" in result) {
+        setError(result.error ?? "Failed to update group");
+        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        return;
+      }
+
+      if ("requiresConfirmation" in result) {
+        setEditWarnings(result.warnings);
+        return;
+      }
+
+      closeEditGroupDialog();
+      pushSuccessMessage(
+        result.assignedCount && result.assignedCount > 0
+          ? `Group updated and ${result.assignedCount} new student${result.assignedCount === 1 ? "" : "s"} assigned.`
+          : "Group updated.",
+      );
+      router.refresh();
+    } catch (updateError) {
+      console.error("updateManualGroup error:", updateError);
+      setError("Failed to update group. Check the terminal for details.");
+      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+    } finally {
+      setUpdatingGroup(false);
     }
   }
 
@@ -631,6 +767,23 @@ export default function AdminGroupsClient({
         onClose={closeCreateGroupDialog}
       >
         <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 space-y-2">
+            <Label htmlFor="create-group-name">Group name</Label>
+            <Input
+              id="create-group-name"
+              className={FIELD_CLASSNAME}
+              value={createForm.groupName}
+              disabled={creatingGroup}
+              onChange={(event) => {
+                setCreateWarnings([]);
+                setCreateForm((current) => ({
+                  ...current,
+                  groupName: event.target.value,
+                }));
+              }}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="create-group-day">Day of week</Label>
             <select
@@ -794,6 +947,227 @@ export default function AdminGroupsClient({
               : createWarnings.length > 0
                 ? "Create anyway"
                 : "Create group"}
+          </Button>
+        </div>
+      </ManagementDialog>
+
+      <ManagementDialog
+        open={editGroupOpen}
+        title="Edit group"
+        description="Change the meeting time, preference, or members for this group. Save to apply the updated group settings."
+        onClose={closeEditGroupDialog}
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 space-y-2">
+            <Label htmlFor="edit-group-name">Group name</Label>
+            <Input
+              id="edit-group-name"
+              className={FIELD_CLASSNAME}
+              value={editForm.groupName}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  groupName: event.target.value,
+                }));
+              }}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-group-day">Day of week</Label>
+            <select
+              id="edit-group-day"
+              className={FIELD_CLASSNAME}
+              value={String(editForm.dayOfWeek)}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  dayOfWeek: Number(event.target.value),
+                }));
+              }}
+            >
+              {DAY_NAMES.map((dayName, index) => (
+                <option key={dayName} value={index}>
+                  {dayName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-group-start">Start time</Label>
+            <select
+              id="edit-group-start"
+              className={FIELD_CLASSNAME}
+              value={getInputTimeValue(editForm.meetStartTime)}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  meetStartTime: `${event.target.value}:00`,
+                }));
+              }}
+            >
+              {GROUP_TIME_OPTIONS.map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-group-end">End time</Label>
+            <Input
+              id="edit-group-end"
+              value={getInputTimeValue(editMeeting.meetEndTime)}
+              readOnly
+              disabled
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-group-preference">Preference</Label>
+          <select
+            id="edit-group-preference"
+            className={FIELD_CLASSNAME}
+            value={editForm.preference}
+            disabled={updatingGroup}
+            onChange={(event) => {
+              const nextPreference = event.target.value as GroupPreference;
+              setEditWarnings([]);
+              setEditForm((current) => ({
+                ...current,
+                preference: nextPreference,
+                roomId: nextPreference === "online" ? null : current.roomId,
+              }));
+            }}
+          >
+            <option value="in_person">In-person</option>
+            <option value="online">Online</option>
+          </select>
+        </div>
+
+        {editForm.preference === "in_person" ? (
+          <div className="space-y-2">
+            <Label htmlFor="edit-group-room">Room</Label>
+            <select
+              id="edit-group-room"
+              className={FIELD_CLASSNAME}
+              value={editForm.roomId ?? ""}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  roomId: event.target.value ? Number(event.target.value) : null,
+                }));
+              }}
+            >
+              <option value="">Auto assign room</option>
+              {rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.building ?? "Unknown"} {room.room_number ?? ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-sm">
+              Choose a specific room for this in-person group, or leave blank to let the system automatically assign one.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <p className="font-medium">Meeting preview</p>
+          <p className="text-muted-foreground">
+            {getMeetingLabel(editMeeting)} • {formatManualPreference(editMeeting.preference)}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <Label>Students</Label>
+            <span className="text-muted-foreground text-xs">
+              {editForm.studentIds.length} selected
+            </span>
+          </div>
+
+          {editStudentCandidates.length === 0 ? (
+            <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+              No students are available to select for this group.
+            </p>
+          ) : (
+            <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
+              {editStudentCandidates.map((student) => {
+                const checked = editForm.studentIds.includes(student.user_id);
+                return (
+                  <label
+                    key={student.user_id}
+                    className="flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-muted/40"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4"
+                      checked={checked}
+                      disabled={updatingGroup}
+                      onChange={(event) => {
+                        setEditWarnings([]);
+                        setEditForm((current) => ({
+                          ...current,
+                          studentIds: event.target.checked
+                            ? [...current.studentIds, student.user_id]
+                            : current.studentIds.filter(
+                                (studentId) => studentId !== student.user_id,
+                              ),
+                        }));
+                      }}
+                    />
+                    <div className="space-y-0.5">
+                      <p className="font-medium">
+                        {student.full_name ?? "No name provided"}
+                        {student.fromCurrentGroup ? " • current member" : ""}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        {student.email ?? "No email"}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {formatMeetingPreference(student.preference)}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <CompatibilityWarningsCallout warnings={editWarnings} />
+
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={updatingGroup}
+            onClick={closeEditGroupDialog}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={updatingGroup}
+            onClick={() => handleUpdateGroup(editWarnings.length > 0)}
+          >
+            {updatingGroup
+              ? "Saving..."
+              : editWarnings.length > 0
+                ? "Save anyway"
+                : "Save changes"}
           </Button>
         </div>
       </ManagementDialog>
@@ -1255,6 +1629,7 @@ export default function AdminGroupsClient({
           <Table>
             <colgroup>
               <col className="w-10" />
+              <col className="w-[20rem]" />
               <col className="w-[22rem]" />
               <col className="w-[14rem]" />
               <col className="w-[10rem]" />
@@ -1265,6 +1640,7 @@ export default function AdminGroupsClient({
             <TableHeader>
               <TableRow className="bg-muted/100">
                 <TableHead className="w-10 px-4" aria-label="Expand" />
+                <TableHead className="px-4">Group name</TableHead>
                 <TableHead className="px-4">Meeting</TableHead>
                 <TableHead className="px-4">Room</TableHead>
                 <TableHead className="px-4">Preference</TableHead>
@@ -1342,6 +1718,13 @@ export default function AdminGroupsClient({
                         </Button>
                       </TableCell>
                       <TableCell className="px-4">
+                        <div className="whitespace-normal">
+                          <div className="font-medium">
+                            {group.group_name ?? "Untitled group"}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4">
                         <div className="space-y-0.5 whitespace-normal">
                           <div className="font-medium">
                             {formatMeeting(group)}
@@ -1407,6 +1790,10 @@ export default function AdminGroupsClient({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditGroupDialog(group)}>
+                                <Pencil className="size-4" />
+                                Edit
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 variant="destructive"
                                 disabled={deletingGroupId === group.id}
@@ -1428,7 +1815,7 @@ export default function AdminGroupsClient({
                         className="bg-muted/5 hover:bg-muted/5"
                       >
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="bg-muted/100 px-4 py-0"
                         >
                           <div className="ml-10 px-4 py-3">

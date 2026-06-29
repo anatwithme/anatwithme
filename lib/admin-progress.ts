@@ -5,6 +5,7 @@ import {
   type GroupTaskCompletionState,
   type ProgressAgenda,
 } from "@/lib/progress";
+import { get } from "lodash";
 
 const DAY_NAMES = [
   "Monday",
@@ -216,6 +217,7 @@ export async function getAdminProgressData(): Promise<AdminProgressData> {
     `,
     )
     .eq("role", "student")
+    .eq("consent_status", "accepted")
     .order("full_name", { ascending: true, nullsFirst: false });
 
   if (studentsError) {
@@ -283,6 +285,18 @@ export async function getAdminProgressData(): Promise<AdminProgressData> {
     }
   }
 
+  const consentingMemberCountByGroup = new Map<string, number>();
+
+  for (const student of students) {
+    const group = getStudentGroup(student);
+    if(!group) continue;
+
+    consentingMemberCountByGroup.set(
+      group.id,
+      (consentingMemberCountByGroup.get(group.id) ?? 0) + 1,
+    );
+  }
+
   for (const row of completions) {
     if (!row.completed) continue;
 
@@ -314,7 +328,7 @@ export async function getAdminProgressData(): Promise<AdminProgressData> {
   });
 
   const groupRows = groups.map((group) => {
-    const memberCount = group.member_of?.length ?? 0;
+    const memberCount = consentingMemberCountByGroup.get(group.id) ?? 0;
     const totalCells = memberCount * totalTasks;
     const completedCells = completedCellCountByGroup.get(group.id) ?? 0;
     const progress = calculateProgressStat(completedCells, totalCells);

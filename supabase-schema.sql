@@ -116,6 +116,7 @@ create table public.room_day (
 
 create table public."group" (
   id uuid primary key default gen_random_uuid(),
+  group_name text not null default '',
   preference text default 'in_person' check (preference in ('in_person', 'online')),
   day_of_week integer check (day_of_week >= 0 and day_of_week <= 6),
   meet_start_time time not null,

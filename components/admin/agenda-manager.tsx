@@ -34,6 +34,7 @@ import {
   updateAgenda,
   reorderAgendas,
   toggleAgenda,
+  applyDatesToActiveAgendas,
 } from "@/app/admin/agendas/action";
 import { Button } from "@/components/ui/button";
 import {
@@ -169,6 +170,9 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   }, [agendas]);
 
   const [copyingId, setCopyingId] = useState<number | null>(null);
+
+  const [semesterStartDate, setSemesterStartDate] = useState("");
+  const [semesterEndDate, setSemesterEndDate] = useState("");
 
   const resetCreateForm = () => {
     setCreateTitle("");
@@ -363,12 +367,38 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     });
   };
 
+  const handleApplySemesterDates = () => {
+    setActionError(null);
+
+    if (!semesterStartDate || !semesterEndDate) {
+      setActionError("Semester start and end dates are both required.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        await applyDatesToActiveAgendas(semesterStartDate, semesterEndDate);
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to apply semester dates.",
+        );
+      }
+    });
+  };
+
   function getDisplayWeek(agendas: Agenda[], agendaId: number) {
     const index = agendas
         .filter((agenda) => agenda.enabled)
         .findIndex((agenda) => agenda.id === agendaId);
 
     return index === -1 ? null : index + 1;
+  }
+
+  function addDays(dateString: string, days: number) {
+    const date = new Date(`${dateString}T00:00:00`);
+    date.setDate(date.getDate() + days);
+    return date.toISOString().slice(0, 10);
   }
 
   return (
@@ -381,6 +411,51 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           {actionError}
         </div>
       )}
+
+      <Card className="rounded-none">
+        <CardHeader>
+          <CardTitle>Automatic Date Adjuster</CardTitle>
+          <CardDescription>
+            Apply weekly date ranges to active agendas. This will update
+            all active agenda dates once.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid items-end gap-4 md:grid-cols-[11rem_11rem_auto]">
+            <div className="grid gap-2">
+              <Label htmlFor="semester-start-date">Semester Start</Label>
+              <Input
+                id="semester-start-date"
+                type="date"
+                value={semesterStartDate}
+                max={semesterEndDate ? addDays(semesterEndDate, -1) : undefined}
+                onChange={(e) => setSemesterStartDate(e.target.value)}
+                disabled={isPending}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="semester-end-date">Semester End</Label>
+              <Input
+                id="semester-end-date"
+                type="date"
+                value={semesterEndDate}
+                min={semesterStartDate ? addDays(semesterStartDate, 1) : undefined}
+                onChange={(e) => setSemesterEndDate(e.target.value)}
+                disabled={isPending}
+              />
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleApplySemesterDates}
+              disabled={isPending || !semesterStartDate || !semesterEndDate}
+            >
+              {isPending ? "Applying..." : "Apply to Active Agendas"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Collapsible create form */}
       {showCreateForm ? (

@@ -33,6 +33,7 @@ export default async function AdminGroupsPage() {
     .select(
       `
       id,
+      group_name,
       preference,
       day_of_week,
       meet_start_time,
@@ -55,6 +56,16 @@ export default async function AdminGroupsPage() {
     `,
     )
     .order("created_at", { ascending: false });
+  // fetch all rooms for the dropdown when creating/editing groups
+  const { data: rooms, error: roomsError } = await supabase
+    .from("room")
+    .select("id, building, room_number")
+    .order("building", { ascending: true })
+    .order("room_number", { ascending: true });
+
+  if (roomsError) {
+    console.error("Failed to fetch rooms:", roomsError.message);
+  }
 
   const { data: studentProfiles, error: studentProfilesError } = await supabase
     .from("profile")
@@ -111,6 +122,7 @@ export default async function AdminGroupsPage() {
     <div className="w-full max-w-7xl space-y-2">
       <AdminGroupsClient
         groups={groups ?? []}
+        rooms={rooms ?? []}
         ungroupedStudents={ungroupedStudents}
         independentStudents={independentStudents}
       />
