@@ -24,7 +24,7 @@ export default async function StudentLayout({
 
   const { data: profile } = await supabase.from("profile").select("role, consent_status").eq("user_id", user.sub).maybeSingle();
 
-  isAdmin = profile?.role === "admin";
+  isAdmin = profile?.role === "admin" || profile?.role === "owner";
   consentStatus = profile?.consent_status ?? "pending";
 
   if (consentStatus === "pending") {
