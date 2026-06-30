@@ -9,6 +9,7 @@ export async function createAgenda(
   week: number,
   startDate: string,
   endDate: string,
+  unitValue: number | null,
 ) {
   const supabase = await createClient();
   const {
@@ -27,6 +28,7 @@ export async function createAgenda(
     start_date: startDate,
     end_date: endDate,
     enabled: true,
+    unitValue,
   });
 
   if (agendaError) {
@@ -43,6 +45,7 @@ export async function updateAgenda(
   week: number,
   startDate: string,
   endDate: string,
+  unitValue: number | null,
 ) {
   const supabase = await createClient();
   const {
@@ -62,6 +65,7 @@ export async function updateAgenda(
       week,
       start_date: startDate,
       end_date: endDate,
+      unitValue,
     })
     .eq("id", agendaId);
 

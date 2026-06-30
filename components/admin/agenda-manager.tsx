@@ -93,6 +93,7 @@ type Agenda = {
   end_date: string;
   enabled: boolean;
   sections?: Section[];
+  unitValue: number | null;
 };
 
 function formatAgendaDate(value: string) {
@@ -150,6 +151,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   const [createWeek, setCreateWeek] = useState("");
   const [createStartDate, setCreateStartDate] = useState("");
   const [createEndDate, setCreateEndDate] = useState("");
+  const [createUnitValue, setCreateUnitValue] = useState("1");
 
   const [expandedAgendaIds, setExpandedAgendaIds] = useState<Set<number>>(
     () => new Set(),
@@ -160,6 +162,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   const [editWeek, setEditWeek] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
+  const [editUnitValue, setEditUnitValue] = useState("1");
 
   const [agendaItems, setAgendaItems] = useState(agendas);
   useEffect(() => {
@@ -177,6 +180,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     setCreateWeek("");
     setCreateStartDate("");
     setCreateEndDate("");
+    setCreateUnitValue("1");
     setShowCreateForm(false);
   };
 
@@ -188,6 +192,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     setEditWeek(String(agenda.week ?? "N/A"));
     setEditStartDate(agenda.start_date);
     setEditEndDate(agenda.end_date);
+    setEditUnitValue(String(agenda.unitValue ?? 1));
   };
 
   const cancelEdit = () => {
@@ -197,6 +202,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
     setEditWeek("");
     setEditStartDate("");
     setEditEndDate("");
+    setEditUnitValue("1");
   };
 
   const handleCreateAgenda = (event: FormEvent<HTMLFormElement>) => {
@@ -213,6 +219,16 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       return;
     }
 
+    const parsedUnitValue = Number.parseInt(createUnitValue, 10);
+    if (
+      !Number.isInteger(parsedUnitValue) ||
+      parsedUnitValue < 1 ||
+      parsedUnitValue > 5
+    ) {
+      setActionError("Unit value must be an integer between 1 and 5.");
+      return;
+    }
+
     startTransition(async () => {
       try {
         await createAgenda(
@@ -221,6 +237,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           parsedWeek,
           createStartDate,
           createEndDate,
+          parsedUnitValue,
         );
         resetCreateForm();
         router.refresh();
@@ -245,6 +262,16 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       return;
     }
 
+    const parsedUnitValue = Number.parseInt(editUnitValue, 10);
+    if (
+      !Number.isInteger(parsedUnitValue) ||
+      parsedUnitValue < 1 ||
+      parsedUnitValue > 5
+    ) {
+      setActionError("Unit value must be an integer between 1 and 5.");
+      return;
+    }
+
     startTransition(async () => {
       try {
         await updateAgenda(
@@ -254,6 +281,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           parsedWeek,
           editStartDate,
           editEndDate,
+          parsedUnitValue,
         );
         cancelEdit();
         router.refresh();
@@ -440,7 +468,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateAgenda} className="space-y-4">
-              <div className="grid items-start gap-4 lg:grid-cols-[5rem_16rem_11rem_11rem_1fr]">
+              <div className="grid items-start gap-4 lg:grid-cols-[5rem_16rem_11rem_11rem_6rem_1fr]">
                 <div className="grid gap-2">
                   <Label htmlFor="agenda-week">Week</Label>
                   <Input
@@ -465,7 +493,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                     disabled={isPending}
                   />
                 </div>
-                <div className="grid\ gap-2">
+                <div className="grid gap-2">
                   <Label htmlFor="agenda-start-date">Start date</Label>
                   <Input
                     id="agenda-start-date"
@@ -485,6 +513,20 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                     onChange={(e) => setCreateEndDate(e.target.value)}
                     required
                     disabled={isPending}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="agenda-unit-value">Unit</Label>
+                  <Input
+                    id="agenda-unit-value"
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={createUnitValue}
+                    onChange={(e) => setCreateUnitValue(e.target.value)}
+                    required
+                    disabled={isPending}
+                    className="h-10"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -546,6 +588,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
               <col className="w-[16rem]" />
               <col className="w-[10rem]" />
               <col className="w-[10rem]" />
+              <col className="w-[8rem]" />
               <col />
               <col className="w-14" />
             </colgroup>
@@ -558,6 +601,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                 <TableHead className="px-4">Title</TableHead>
                 <TableHead className="px-4">Start date</TableHead>
                 <TableHead className="px-4">End date</TableHead>
+                <TableHead className="px-4">Unit</TableHead>
                 <TableHead className="px-4">Description</TableHead>
                 <TableHead className="px-4 text-right">
                   {agendaItems.length > 0 ? (
@@ -598,7 +642,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
               {agendaItems.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={10}
                     className="px-4 py-12 text-center text-muted-foreground"
                   >
                     No agendas yet.
@@ -679,7 +723,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                         key={`${agenda.id}-detail`}
                         className="bg-muted/5 hover:bg-muted/5"
                       >
-                        <TableCell colSpan={9} className="px-4 py-3 bg-muted/100">
+                        <TableCell colSpan={10} className="px-4 py-3 bg-muted/100">
                           <div className="ml-10 px-4 py-3">
                             <div className="max-h-48 overflow-y-auto">
                               {sections.length === 0 ? (
@@ -792,6 +836,17 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                 type="date"
                                 value={editEndDate}
                                 onChange={(e) => setEditEndDate(e.target.value)}
+                                disabled={isPending}
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 align-top">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={5}
+                                value={editUnitValue}
+                                onChange={(e) => setEditUnitValue(e.target.value)}
                                 disabled={isPending}
                                 className="h-8"
                               />
@@ -911,6 +966,9 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                               </TableCell>
                               <TableCell className="px-4 text-muted-foreground">
                                 {formatAgendaDate(agenda.end_date)}
+                              </TableCell>
+                              <TableCell className="px-4 text-muted-foreground">
+                                {agenda.unitValue ?? "—"}
                               </TableCell>
                               <TableCell className="px-4 text-muted-foreground">
                                 <span className="line-clamp-1">

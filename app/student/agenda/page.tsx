@@ -37,6 +37,7 @@ type Agenda = {
   title: string;
   description: string | null;
   week: number;
+  unitValue: number | null;
   start_date: string;
   end_date: string;
   enabled: boolean;
@@ -50,6 +51,7 @@ type GroupMember = {
 type StudentAgendaPageProps = {
   searchParams?: Promise<{
     agenda?: string;
+    unit?: string;
   }>;
 };
 
@@ -183,20 +185,54 @@ export default async function StudentAgendaPage({
     memberCount: memberIds.length,
   });
 
+  const availableUnits = Array.from(
+    new Set(
+      agendas
+        .map((agenda) => agenda.unitValue)
+        .filter((value): value is number => typeof value === "number"),
+    ),
+  ).sort((a, b) => a - b);
+
   const requestedAgendaId = Number(resolvedSearchParams?.agenda);
-  const hasExplicitSelection =
+  const requestedUnit = Number(resolvedSearchParams?.unit);
+
+  const hasExplicitAgendaSelection =
     Number.isInteger(requestedAgendaId) &&
     agendaSummaries.some((agenda) => agenda.id === requestedAgendaId);
 
-  const selectedAgendaId = getDefaultAgendaId({
-    agendas,
-    agendaSummaries,
-    requestedAgendaId,
-    today: new Date().toISOString().slice(0, 10),
-  });
+  const hasExplicitUnitSelection =
+    Number.isInteger(requestedUnit) &&
+    requestedUnit >= 1 &&
+    requestedUnit <= 5 &&
+    agendas.some((agenda) => agenda.unitValue === requestedUnit);
+
+  const earliestIncompleteAgenda = agendaSummaries.find(
+    (agenda) => agenda.totalTasks > 0 && agenda.studentProgressPercent < 100,
+  );
+
+  const defaultAgendaId =
+    earliestIncompleteAgenda?.id ??
+    agendaSummaries[agendaSummaries.length - 1]?.id ??
+    agendaSummaries[0].id;
+
+  const selectedAgendaId = hasExplicitAgendaSelection
+    ? requestedAgendaId
+    : defaultAgendaId;
 
   const selectedAgenda =
-    agendas.find((agenda) => agenda.id === selectedAgendaId) ?? agendas[0];
+    (hasExplicitAgendaSelection &&
+      agendas.find((agenda) => agenda.id === selectedAgendaId)) ||
+    (hasExplicitUnitSelection &&
+      agendas
+        .filter((agenda) => agenda.unitValue === requestedUnit)
+        .sort((a, b) => a.week - b.week)[0]) ||
+    agendas.find((agenda) => agenda.id === selectedAgendaId) ||
+    agendas[0];
+
+  const selectedUnit =
+    hasExplicitUnitSelection
+      ? requestedUnit
+      : selectedAgenda.unitValue ?? availableUnits[0] ?? null;
 
   const selectedSummary =
     agendaSummaries.find((agenda) => agenda.id === selectedAgenda.id) ??
@@ -216,12 +252,15 @@ export default async function StudentAgendaPage({
       <AgendaHeader />
       <StudentAgendaBoard
         agenda={selectedAgenda}
+        allAgendas={agendas}
         agendaSummaries={agendaSummaries}
         selectedAgendaId={selectedAgenda.id}
-        hasExplicitSelection={hasExplicitSelection}
-        completedTaskIds={completedTaskIdsForSelectedAgenda}
-        studentProgressPercent={selectedSummary.studentProgressPercent}
-        groupProgressPercent={selectedSummary.groupProgressPercent}
+        selectedUnit={selectedUnit}
+        availableUnits={availableUnits}
+        hasExplicitSelection={hasExplicitAgendaSelection}
+        myCompletedTaskSet={myCompletedTaskSet}
+        groupCompletions={groupCompletions ?? []}
+        memberIds={memberIds}
         hasGroup={Boolean(membership)}
         overallProgressPercent={overallProgressPercent}
       />
