@@ -311,6 +311,7 @@ export default function StudentAgendaBoard({
               </span>
               <div className="flex rounded-full border border-gray-300 bg-white p-1">
                 <button
+                  style={{ cursor: "pointer" }}
                   type="button"
                   onClick={() => setViewMode("week")}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
@@ -322,6 +323,7 @@ export default function StudentAgendaBoard({
                   Week
                 </button>
                 <button
+                  style={{ cursor: "pointer" }}
                   type="button"
                   onClick={() => setViewMode("unit")}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
@@ -336,6 +338,7 @@ export default function StudentAgendaBoard({
             </div>
             {viewMode === "week" ? (
               <select
+                style={{ cursor: "pointer" }}
                 id="agenda-selector"
                 value={selectedAgendaId}
                 onChange={(e) => changeAgenda(Number(e.target.value))}
@@ -366,6 +369,7 @@ export default function StudentAgendaBoard({
 
           <div className="flex items-center gap-2">
             <button
+              style={{ cursor: "pointer" }}
               type="button"
               onClick={() => previousAgenda && changeAgenda(previousAgenda.id)}
               disabled={!previousAgenda}
@@ -376,6 +380,7 @@ export default function StudentAgendaBoard({
             </button>
 
             <button
+              style={{ cursor: "pointer" }}
               type="button"
               onClick={() => nextAgenda && changeAgenda(nextAgenda.id)}
               disabled={!nextAgenda}
@@ -413,6 +418,7 @@ export default function StudentAgendaBoard({
 
             {sections.length > 0 && (
               <button
+                style={{ cursor: "pointer" }}
                 type="button"
                 onClick={allSectionsExpanded ? collapseAll : expandAll}
                 className="shrink-0 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
@@ -462,6 +468,7 @@ export default function StudentAgendaBoard({
                           </div>
 
                           <button
+                            style={{ cursor: "pointer" }}
                             type="button"
                             onClick={() =>
                               setExpandedSectionIds((prev) => {
@@ -505,6 +512,7 @@ export default function StudentAgendaBoard({
                                 >
                                   <div className="flex items-start gap-3">
                                     <input
+                                      style={{ cursor: "pointer" }}
                                       type="checkbox"
                                       checked={isChecked}
                                       disabled={isPending}
