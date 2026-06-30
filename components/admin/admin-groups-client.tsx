@@ -1789,12 +1789,16 @@ export default function AdminGroupsClient({
                                 </span>
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditGroupDialog(group)}>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem 
+                                style={{ cursor: "pointer" }}
+                                onClick={() => openEditGroupDialog(group)}
+                              >
                                 <Pencil className="size-4" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                style={{ cursor: "pointer" }}
                                 variant="destructive"
                                 disabled={deletingGroupId === group.id}
                                 onClick={() => openDeleteDialog(group)}
@@ -1969,8 +1973,9 @@ export default function AdminGroupsClient({
                             <span className="sr-only">Open row actions</span>
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="start">
                           <DropdownMenuItem
+                            style={{ cursor: "pointer" }}
                             disabled={groups.length === 0}
                             onClick={() => openAssignDialog(student)}
                           >

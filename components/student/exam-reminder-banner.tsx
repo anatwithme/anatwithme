@@ -32,6 +32,7 @@ export default function ExamReminderBanner({ examTitle, daysUntilExam }: Props) 
       </p>
       {!isHardReminder && (
         <button
+          style={{ cursor: "pointer" }}
           type="button"
           onClick={() => setDismissed(true)}
           aria-label="Dismiss"

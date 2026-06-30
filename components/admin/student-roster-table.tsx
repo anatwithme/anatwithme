@@ -327,7 +327,7 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
                         </Button>
                       </DropdownMenuTrigger>
 
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="start">
                         <DropdownMenuItem disabled>
                           View Availability
                         </DropdownMenuItem>
@@ -336,6 +336,7 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
 
                         {isOwner && (
                           <DropdownMenuItem 
+                            style={{ cursor: "pointer" }}
                             className="text-blue-500 focus:text-blue-500"
                             onSelect={(event) => {
                               event.preventDefault();
@@ -349,6 +350,7 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
                         )}
 
                         <DropdownMenuItem
+                          style={{ cursor: "pointer" }}
                           variant="destructive"
                           disabled={isPending}
                           onSelect={(event) => {

@@ -199,13 +199,14 @@ export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner
                         </Button>
                       </DropdownMenuTrigger>
 
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="start">
                         <DropdownMenuItem disabled>
                           View Availability
                         </DropdownMenuItem>
 
                         {isOwner && (
                           <DropdownMenuItem
+                            style={{ cursor: "pointer" }}
                             variant="destructive"
                             disabled={isPending}
                             onSelect={(event) => {

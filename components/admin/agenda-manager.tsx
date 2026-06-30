@@ -916,6 +916,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                               <TableCell className="w-10 px-4 align-middle text-center">
                                 <input
                                   type="checkbox"
+                                  style={{ cursor: "pointer" }}
                                   checked={agenda.enabled ?? true}
                                   disabled={isPending}
                                   onPointerDown={(event) => event.stopPropagation()}
@@ -1000,8 +1001,9 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                         <span className="sr-only">Open row actions</span>
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuContent align="start">
                                       <DropdownMenuItem
+                                        style={{ cursor: "pointer" }}
                                         disabled={isPending || copyingId === agenda.id}
                                         onSelect={(e) => {
                                           e.preventDefault();
@@ -1012,6 +1014,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                         {copyingId === agenda.id ? "Copying..." : "Copy"}
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
+                                        style={{ cursor: "pointer" }}
                                         onSelect={(e) => {
                                           e.preventDefault();
                                           beginEdit(agenda);
@@ -1021,6 +1024,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                         Edit
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
+                                        style={{ cursor: "pointer" }}
                                         variant="destructive"
                                         disabled={isDeleting}
                                         onSelect={(e) => {

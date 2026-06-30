@@ -155,6 +155,7 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
 
               return (
                 <button
+                  style={{ cursor: "pointer" }}
                   key={day}
                   type="button"
                   onClick={() => handleCellClick(day, slotPosition)}

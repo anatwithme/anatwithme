@@ -250,6 +250,7 @@ export default function AdminProgressClient({
       <Card className="border-destructive/40">
         <CardHeader>
           <button
+            style={{ cursor: "pointer" }}
             type="button"
             className="flex w-full items-start justify-between gap-4 text-left"
             onClick={() => setIsDangerOpen((current) => !current)}
@@ -456,7 +457,10 @@ function RolloverOption({
   onToggle: () => void;
 }) {
   return (
-    <label className="flex items-start gap-3 rounded-md border bg-background p-3">
+    <label 
+      className="flex items-start gap-3 rounded-md border bg-background p-3"  
+      style={{ cursor: "pointer" }}
+    >
       <input
         type="checkbox"
         className="mt-0.5 h-4 w-4 rounded border-input"
