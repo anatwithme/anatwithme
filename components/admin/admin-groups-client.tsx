@@ -64,6 +64,7 @@ import {
   type CompatibilityWarning,
   type GroupPreference,
 } from "@/lib/group-management";
+import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 import { cn } from "@/lib/utils";
 
 type GroupMember = {
@@ -147,6 +148,7 @@ type UngroupedStudent = {
   preference: "in_person" | "online" | "no_preference" | null;
   study_mode: "group" | "independent";
   profile_picture_url: string | null;
+  savedSlotIds: number[];
 };
 
 
@@ -167,6 +169,12 @@ type CreateGroupFormState = {
 
 type StudentSelectOption = UngroupedStudent & {
   fromCurrentGroup?: boolean;
+};
+
+type TimeSlot = {
+  id: number;
+  day: number;
+  slot_index: number;
 };
 
 const FIELD_CLASSNAME =
@@ -293,11 +301,13 @@ export default function AdminGroupsClient({
   rooms,
   ungroupedStudents,
   independentStudents,
+  timeSlots,
 }: {
   groups: Group[];
   rooms: RoomOption[];
   ungroupedStudents: UngroupedStudent[];
   independentStudents: UngroupedStudent[];
+  timeSlots: TimeSlot[];
 }) {
   const router = useRouter();
 
@@ -342,6 +352,7 @@ export default function AdminGroupsClient({
     [],
   );
   const [assigningToGroup, setAssigningToGroup] = useState(false);
+  const [availabilityStudent, setAvailabilityStudent] = useState<UngroupedStudent | null>(null);
 
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -416,14 +427,20 @@ export default function AdminGroupsClient({
 
     const currentMembers = editingGroup.member_of.map((member) => {
       const profile = getMemberProfile(member);
+
+      const existingStudent = 
+        ungroupedStudents.find((student) => student.user_id === member.user_id) ??
+        independentStudents.find((student) => student.user_id === member.user_id);
+
       return {
         user_id: member.user_id,
         full_name: profile?.full_name ?? "Unknown",
         email: profile?.email ?? null,
-        phone: null,
-        preference: "no_preference" as const,
+        phone: existingStudent?.phone ?? null,
+        preference: existingStudent?.preference ?? "no_preference",
         study_mode: "group" as const,
-        profile_picture_url: null,
+        profile_picture_url: existingStudent?.profile_picture_url ?? null,
+        savedSlotIds: existingStudent?.savedSlotIds ?? [],
         fromCurrentGroup: true,
       };
     });
@@ -1882,6 +1899,18 @@ export default function AdminGroupsClient({
         </div>
       )}
 
+      {availabilityStudent && (
+        <StudentAvailabilityDialog
+          open={!!availabilityStudent}
+          onOpenChange={(open) => {
+            if (!open) setAvailabilityStudent(null);
+          }}
+          studentName={availabilityStudent.full_name ?? availabilityStudent.email ?? "Student"}
+          timeSlots={timeSlots}
+          savedSlotIds={availabilityStudent.savedSlotIds}
+        />
+      )}
+
       <section className="space-y-4 pt-4">
         <div className="flex items-baseline gap-3">
           <h2 className="text-lg font-semibold leading-none">Ungrouped Students</h2>
@@ -1974,6 +2003,13 @@ export default function AdminGroupsClient({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            style={{ cursor: "pointer" }}
+                            onSelect={() => setAvailabilityStudent(student)}
+                          >
+                            View Availability
+                          </DropdownMenuItem>
+
                           <DropdownMenuItem
                             style={{ cursor: "pointer" }}
                             disabled={groups.length === 0}
