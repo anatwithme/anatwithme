@@ -37,6 +37,7 @@ type Agenda = {
   title: string;
   description: string | null;
   week: number;
+  unitValue: number | null;
   start_date: string;
   end_date: string;
   enabled: boolean;
@@ -57,12 +58,22 @@ type AgendaSummary = {
 
 type Props = {
   agenda: Agenda;
+  // All agendas are required when the board switches to unit view,
+  // so we can surface all sections for the selected unit.
+  allAgendas: Agenda[];
   agendaSummaries: AgendaSummary[];
   selectedAgendaId: number;
+  selectedUnit: number | null;
+  availableUnits: number[];
   hasExplicitSelection: boolean;
-  completedTaskIds: number[];
-  studentProgressPercent: number;
-  groupProgressPercent: number;
+  myCompletedTaskSet: Set<number>;
+  // Group completion records are used to compute group progress percentage.
+  groupCompletions: Array<{
+    user_id: string;
+    task_id: number;
+    completed: boolean;
+  }>;
+  memberIds: string[];
   hasGroup?: boolean;
   overallProgressPercent: number;
 };
@@ -110,12 +121,15 @@ function ProgressBar({
 
 export default function StudentAgendaBoard({
   agenda,
+  allAgendas,
   agendaSummaries,
   selectedAgendaId,
+  selectedUnit,
+  availableUnits,
   hasExplicitSelection,
-  completedTaskIds,
-  studentProgressPercent,
-  groupProgressPercent,
+  myCompletedTaskSet,
+  groupCompletions,
+  memberIds,
   hasGroup = false,
   overallProgressPercent,
 }: Props) {
@@ -126,21 +140,69 @@ export default function StudentAgendaBoard({
   const [expandedSectionIds, setExpandedSectionIds] = useState<Set<number>>(
     new Set(sortByOrder(agenda.sections).map((section) => section.id)),
   );
+  const [viewMode, setViewMode] = useState<"week" | "unit">("week");
   const [isPending, startTransition] = useTransition();
 
+  // Use the already-constructed completed task set so we don't recreate
+  // a new collection unnecessarily when the prop already provides one.
   const completedSet = useMemo(
-    () => new Set(completedTaskIds),
-    [completedTaskIds],
+    () => myCompletedTaskSet,
+    [myCompletedTaskSet],
   );
 
   const sections = useMemo(
-    () =>
-      sortByOrder(agenda.sections ?? []).map((section) => ({
+    () => {
+      let agendaSectionsToUse: Section[] = [];
+      
+      if (viewMode === "unit" && selectedUnit !== null) {
+        // In unit mode: collect sections from all agendas matching the selected unit
+        const agendasInUnit = allAgendas.filter(
+          (a) => a.unitValue === selectedUnit
+        );
+        agendasInUnit.forEach((a) => {
+          agendaSectionsToUse.push(...(a.sections ?? []));
+        });
+      } else {
+        // In week mode: use sections from the single selected agenda
+        agendaSectionsToUse = agenda.sections ?? [];
+      }
+      
+      return sortByOrder(agendaSectionsToUse).map((section) => ({
         ...section,
         tasks: sortByOrder(section.tasks ?? []),
-      })),
-    [agenda.sections],
+      }));
+    },
+    [agenda.sections, viewMode, selectedUnit, allAgendas],
   );
+
+  // Calculate progress based on current sections (which change by unit/week mode)
+  const { studentProgressPercent, groupProgressPercent } = useMemo(() => {
+    const taskIdsInSections = sections.flatMap((section) =>
+      section.tasks.map((task) => task.id),
+    );
+    
+    const completedTaskCount = taskIdsInSections.filter((taskId) =>
+      myCompletedTaskSet.has(taskId),
+    ).length;
+    
+    const studentProgress = taskIdsInSections.length > 0
+      ? Math.round((completedTaskCount / taskIdsInSections.length) * 100)
+      : 0;
+    
+    // Calculate group progress based on member completions for all visible tasks.
+    const groupCompleted = groupCompletions.filter(
+      (completion) =>
+        completion.completed && taskIdsInSections.includes(completion.task_id),
+    ).length;
+    
+    // Total possible group completions is members times visible tasks.
+    const totalPossibleGroupCompletions = memberIds.length * taskIdsInSections.length;
+    const groupProgress = totalPossibleGroupCompletions > 0
+      ? Math.round((groupCompleted / totalPossibleGroupCompletions) * 100)
+      : 0;
+    
+    return { studentProgressPercent: studentProgress, groupProgressPercent: groupProgress };
+  }, [sections, myCompletedTaskSet, groupCompletions, memberIds]);
 
   const selectedIndex = agendaSummaries.findIndex(
     (item) => item.id === selectedAgendaId,
@@ -154,10 +216,25 @@ export default function StudentAgendaBoard({
       : null;
 
   useEffect(() => {
+    let sectionsToExpand: Section[] = [];
+    
+    if (viewMode === "unit" && selectedUnit !== null) {
+      // In unit mode: expand all sections from agendas in the unit
+      const agendasInUnit = allAgendas.filter(
+        (a) => a.unitValue === selectedUnit
+      );
+      agendasInUnit.forEach((a) => {
+        sectionsToExpand.push(...(a.sections ?? []));
+      });
+    } else {
+      // In week mode: expand all sections from the selected agenda
+      sectionsToExpand = agenda.sections ?? [];
+    }
+    
     setExpandedSectionIds(
-      new Set(sortByOrder(agenda.sections ?? []).map((section) => section.id)),
+      new Set(sortByOrder(sectionsToExpand).map((section) => section.id)),
     );
-  }, [agenda.id, agenda.sections]);
+  }, [agenda.id, agenda.sections, viewMode, selectedUnit, allAgendas]);
 
   useEffect(() => {
     localStorage.setItem(LAST_AGENDA_STORAGE_KEY, String(selectedAgendaId));
@@ -189,7 +266,15 @@ export default function StudentAgendaBoard({
 
   const changeAgenda = (agendaId: number) => {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("unit");
     params.set("agenda", String(agendaId));
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const changeUnit = (unit: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("agenda");
+    params.set("unit", String(unit));
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -220,28 +305,71 @@ export default function StudentAgendaBoard({
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex-1">
-            <label
-              htmlFor="agenda-selector"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              Week
-            </label>
-            <select
-              id="agenda-selector"
-              value={selectedAgendaId}
-              onChange={(e) => changeAgenda(Number(e.target.value))}
-              className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
-            >
-              {agendaSummaries.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">
+                {viewMode === "week" ? "Week" : "Unit"}
+              </span>
+              <div className="flex rounded-full border border-gray-300 bg-white p-1">
+                <button
+                  style={{ cursor: "pointer" }}
+                  type="button"
+                  onClick={() => setViewMode("week")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    viewMode === "week"
+                      ? "bg-[#BB0000] text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  style={{ cursor: "pointer" }}
+                  type="button"
+                  onClick={() => setViewMode("unit")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    viewMode === "unit"
+                      ? "bg-[#BB0000] text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Unit
+                </button>
+              </div>
+            </div>
+            {viewMode === "week" ? (
+              <select
+                style={{ cursor: "pointer" }}
+                id="agenda-selector"
+                value={selectedAgendaId}
+                onChange={(e) => changeAgenda(Number(e.target.value))}
+                className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+              >
+                {agendaSummaries.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {viewMode === "unit" ? (
+              <select
+                id="unit-selector"
+                value={selectedUnit ?? ""}
+                onChange={(e) => changeUnit(Number(e.target.value))}
+                className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+              >
+                {availableUnits.map((unit) => (
+                  <option key={unit} value={unit}>
+                    Unit {unit}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              style={{ cursor: "pointer" }}
               type="button"
               onClick={() => previousAgenda && changeAgenda(previousAgenda.id)}
               disabled={!previousAgenda}
@@ -252,6 +380,7 @@ export default function StudentAgendaBoard({
             </button>
 
             <button
+              style={{ cursor: "pointer" }}
               type="button"
               onClick={() => nextAgenda && changeAgenda(nextAgenda.id)}
               disabled={!nextAgenda}
@@ -263,8 +392,15 @@ export default function StudentAgendaBoard({
           </div>
         </div>
 
-        <div className="mt-3 text-sm text-gray-500">
-          {formatDate(agenda.start_date)} - {formatDate(agenda.end_date)}
+        <div className="mt-3 space-y-2 text-sm text-gray-500">
+          {viewMode === "week" ? (
+            <div>
+              {formatDate(agenda.start_date)} - {formatDate(agenda.end_date)}
+            </div>
+          ) : null}
+          <div className="text-sm text-gray-500">
+            Display mode: <span className="font-medium text-gray-900">{viewMode === "week" ? "Week" : "Unit"}</span>
+          </div>
         </div>
       </div>
 
@@ -274,12 +410,15 @@ export default function StudentAgendaBoard({
             <div>
               <h2 className="text-2xl font-semibold text-gray-900">Sections</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Scroll sideways to move through the week’s sections and tasks.
+                {viewMode === "unit"
+                  ? `All sections for Unit ${selectedUnit}`
+                  : "Scroll sideways to move through the week's sections and tasks."}
               </p>
             </div>
 
             {sections.length > 0 && (
               <button
+                style={{ cursor: "pointer" }}
                 type="button"
                 onClick={allSectionsExpanded ? collapseAll : expandAll}
                 className="shrink-0 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
@@ -329,6 +468,7 @@ export default function StudentAgendaBoard({
                           </div>
 
                           <button
+                            style={{ cursor: "pointer" }}
                             type="button"
                             onClick={() =>
                               setExpandedSectionIds((prev) => {
@@ -372,6 +512,7 @@ export default function StudentAgendaBoard({
                                 >
                                   <div className="flex items-start gap-3">
                                     <input
+                                      style={{ cursor: "pointer" }}
                                       type="checkbox"
                                       checked={isChecked}
                                       disabled={isPending}
@@ -430,14 +571,22 @@ export default function StudentAgendaBoard({
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Progress</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Track how you and your group are doing for this week.
+                {viewMode === "unit"
+                  ? `Track how you and your group are doing for Unit ${selectedUnit}.`
+                  : "Track how you and your group are doing for this week."}
               </p>
             </div>
 
             <div className="mt-8 space-y-6">
-              <ProgressBar label="Your Progress" percent={studentProgressPercent} />
+              <ProgressBar 
+                label={viewMode === "unit" ? `Your Progress (Unit ${selectedUnit})` : "Your Progress"} 
+                percent={studentProgressPercent} 
+              />
               {hasGroup ? (
-                <ProgressBar label="Group Progress" percent={groupProgressPercent} />
+                <ProgressBar 
+                  label={viewMode === "unit" ? `Group Progress (Unit ${selectedUnit})` : "Group Progress"} 
+                  percent={groupProgressPercent} 
+                />
               ) : null}
               <ProgressBar label="Overall Course Progress" percent={overallProgressPercent} />
             </div>

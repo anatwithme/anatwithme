@@ -22,6 +22,7 @@ type UngroupedStudent = {
   member_of?: {
     group_id: string;
   }[] | null;
+  savedSlotIds: number[];
 };
 
 export default async function AdminGroupsPage() {
@@ -33,6 +34,7 @@ export default async function AdminGroupsPage() {
     .select(
       `
       id,
+      group_name,
       preference,
       day_of_week,
       meet_start_time,
@@ -92,6 +94,23 @@ export default async function AdminGroupsPage() {
     );
   }
 
+  const { data: timeSlots, error: timeSlotsError } = await supabase
+    .from("time_slot")
+    .select("id, day, slot_index")
+    .order("slot_index");
+
+  if (timeSlotsError) {
+    console.error("Failed to fetch time slots:", timeSlotsError.message);
+  }
+
+  const { data: availability, error: availabilityError } = await supabase
+    .from("availability")
+    .select("user_id, time_slot_id");
+
+  if (availabilityError) {
+    console.error("Failed to fetch availability:", availabilityError.message);
+  }
+
   const allStudents: UngroupedStudent[] = (studentProfiles ?? []).map((student) => ({
     user_id: student.user_id,
     full_name: student.full_name,
@@ -102,6 +121,10 @@ export default async function AdminGroupsPage() {
     group_study_agreement_accepted: student.group_study_agreement_accepted,
     profile_picture_url: student.profile_picture_url,
     member_of: student.member_of,
+    savedSlotIds:
+      availability
+        ?.filter((row) => row.user_id === student.user_id)
+        .map((row) => row.time_slot_id) ?? [],
   }));
 
   const ungroupedStudents = allStudents
@@ -124,6 +147,7 @@ export default async function AdminGroupsPage() {
         rooms={rooms ?? []}
         ungroupedStudents={ungroupedStudents}
         independentStudents={independentStudents}
+        timeSlots={timeSlots ?? []}
       />
     </div>
   );

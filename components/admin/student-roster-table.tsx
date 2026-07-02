@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { removeStudent, promoteStudent } from "@/lib/actions/admin-actions";
+import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 
 const DAY_NAMES = [
   "Monday",
@@ -31,6 +32,12 @@ const DAY_NAMES = [
   "Saturday",
   "Sunday",
 ] as const;
+
+type TimeSlot = {
+  id: number;
+  day: number;
+  slot_index: number;
+};
 
 type Group = {
   id: string;
@@ -54,6 +61,7 @@ type Student = {
   study_mode: "group" | "independent";
   profile_picture_url: string | null;
   member_of?: MemberOfRow[] | null;
+  savedSlotIds: number[];
 };
 
 function formatMeetingPreference(preference: Student["preference"]) {
@@ -128,12 +136,17 @@ function formatGroupLabel(group: Group | null) {
   return `${meeting} • ${preference}`;
 }
 
-export function StudentRosterTable({ students, isOwner }: { students: Student[]; isOwner: boolean; }) {
+export function StudentRosterTable({ 
+  students, isOwner, timeSlots, 
+}: { 
+  students: Student[]; isOwner: boolean; timeSlots: TimeSlot[]; 
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingRemovalStudent, setPendingRemovalStudent] = useState<Student | null>(null);
   const [pendingPromotionStudent, setPendingPromotionStudent] = useState<Student | null>(null);
+  const [availabilityStudent, setAvailabilityStudent] = useState<Student | null>(null);
 
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
 
@@ -224,6 +237,18 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
           </p>
         </div>
       </ConfirmDialog>
+
+      {availabilityStudent && (
+        <StudentAvailabilityDialog
+          open={!!availabilityStudent}
+          onOpenChange={(open) => {
+            if (!open) setAvailabilityStudent(null);
+          }}
+          studentName={availabilityStudent.full_name ?? availabilityStudent.email}
+          timeSlots={timeSlots}
+          savedSlotIds={availabilityStudent.savedSlotIds}
+        />
+      )}
 
       <div className="border">
         <Table>
@@ -327,8 +352,11 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
                         </Button>
                       </DropdownMenuTrigger>
 
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem disabled>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          style={{ cursor: "pointer" }}
+                          onSelect={() => setAvailabilityStudent(student)}
+                        >
                           View Availability
                         </DropdownMenuItem>
 
@@ -336,6 +364,7 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
 
                         {isOwner && (
                           <DropdownMenuItem 
+                            style={{ cursor: "pointer" }}
                             className="text-blue-500 focus:text-blue-500"
                             onSelect={(event) => {
                               event.preventDefault();
@@ -349,6 +378,7 @@ export function StudentRosterTable({ students, isOwner }: { students: Student[];
                         )}
 
                         <DropdownMenuItem
+                          style={{ cursor: "pointer" }}
                           variant="destructive"
                           disabled={isPending}
                           onSelect={(event) => {

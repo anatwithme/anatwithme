@@ -64,6 +64,7 @@ import {
   type CompatibilityWarning,
   type GroupPreference,
 } from "@/lib/group-management";
+import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 import { cn } from "@/lib/utils";
 
 type GroupMember = {
@@ -82,6 +83,7 @@ type GroupMember = {
 
 type Group = {
   id: string;
+  group_name?: string | null;
   preference: string | null;
   day_of_week: number | null;
   meet_start_time: string;
@@ -146,6 +148,7 @@ type UngroupedStudent = {
   preference: "in_person" | "online" | "no_preference" | null;
   study_mode: "group" | "independent";
   profile_picture_url: string | null;
+  savedSlotIds: number[];
 };
 
 
@@ -160,11 +163,18 @@ type CreateGroupFormState = {
   meetStartTime: string;
   preference: GroupPreference;
   studentIds: string[];
+  groupName: string;
   roomId?: number | null;
 };
 
 type StudentSelectOption = UngroupedStudent & {
   fromCurrentGroup?: boolean;
+};
+
+type TimeSlot = {
+  id: number;
+  day: number;
+  slot_index: number;
 };
 
 const FIELD_CLASSNAME =
@@ -281,6 +291,7 @@ function getDefaultCreateFormState(): CreateGroupFormState {
     meetStartTime: `${GROUP_TIME_OPTIONS[0]}:00`,
     preference: "in_person",
     studentIds: [],
+    groupName: "",
     roomId: null,
   };
 }
@@ -290,11 +301,13 @@ export default function AdminGroupsClient({
   rooms,
   ungroupedStudents,
   independentStudents,
+  timeSlots,
 }: {
   groups: Group[];
   rooms: RoomOption[];
   ungroupedStudents: UngroupedStudent[];
   independentStudents: UngroupedStudent[];
+  timeSlots: TimeSlot[];
 }) {
   const router = useRouter();
 
@@ -339,6 +352,7 @@ export default function AdminGroupsClient({
     [],
   );
   const [assigningToGroup, setAssigningToGroup] = useState(false);
+  const [availabilityStudent, setAvailabilityStudent] = useState<UngroupedStudent | null>(null);
 
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -413,14 +427,20 @@ export default function AdminGroupsClient({
 
     const currentMembers = editingGroup.member_of.map((member) => {
       const profile = getMemberProfile(member);
+
+      const existingStudent = 
+        ungroupedStudents.find((student) => student.user_id === member.user_id) ??
+        independentStudents.find((student) => student.user_id === member.user_id);
+
       return {
         user_id: member.user_id,
         full_name: profile?.full_name ?? "Unknown",
         email: profile?.email ?? null,
-        phone: null,
-        preference: "no_preference" as const,
+        phone: existingStudent?.phone ?? null,
+        preference: existingStudent?.preference ?? "no_preference",
         study_mode: "group" as const,
-        profile_picture_url: null,
+        profile_picture_url: existingStudent?.profile_picture_url ?? null,
+        savedSlotIds: existingStudent?.savedSlotIds ?? [],
         fromCurrentGroup: true,
       };
     });
@@ -484,6 +504,7 @@ export default function AdminGroupsClient({
       dayOfWeek: group.day_of_week ?? 0,
       meetStartTime: group.meet_start_time,
       preference: (group.preference ?? "in_person") as GroupPreference,
+      groupName: group.group_name ?? "",
       studentIds: group.member_of.map((member) => member.user_id),
       roomId: group.room_id ?? null,
     });
@@ -591,6 +612,7 @@ export default function AdminGroupsClient({
         meetStartTime: createMeeting.meetStartTime,
         meetEndTime: createMeeting.meetEndTime,
         preference: createForm.preference,
+        groupName: createForm.groupName,
         studentIds: createForm.studentIds,
         overrideWarnings,
       });
@@ -641,6 +663,7 @@ export default function AdminGroupsClient({
         meetStartTime: editForm.meetStartTime,
         meetEndTime: editMeeting.meetEndTime,
         preference: editForm.preference,
+        groupName: editForm.groupName,
         studentIds: editForm.studentIds,
         roomId: editForm.preference === "in_person" ? editForm.roomId : null,
         overrideWarnings,
@@ -761,6 +784,23 @@ export default function AdminGroupsClient({
         onClose={closeCreateGroupDialog}
       >
         <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 space-y-2">
+            <Label htmlFor="create-group-name">Group name</Label>
+            <Input
+              id="create-group-name"
+              className={FIELD_CLASSNAME}
+              value={createForm.groupName}
+              disabled={creatingGroup}
+              onChange={(event) => {
+                setCreateWarnings([]);
+                setCreateForm((current) => ({
+                  ...current,
+                  groupName: event.target.value,
+                }));
+              }}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="create-group-day">Day of week</Label>
             <select
@@ -935,6 +975,23 @@ export default function AdminGroupsClient({
         onClose={closeEditGroupDialog}
       >
         <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 space-y-2">
+            <Label htmlFor="edit-group-name">Group name</Label>
+            <Input
+              id="edit-group-name"
+              className={FIELD_CLASSNAME}
+              value={editForm.groupName}
+              disabled={updatingGroup}
+              onChange={(event) => {
+                setEditWarnings([]);
+                setEditForm((current) => ({
+                  ...current,
+                  groupName: event.target.value,
+                }));
+              }}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-group-day">Day of week</Label>
             <select
@@ -1589,6 +1646,7 @@ export default function AdminGroupsClient({
           <Table>
             <colgroup>
               <col className="w-10" />
+              <col className="w-[20rem]" />
               <col className="w-[22rem]" />
               <col className="w-[14rem]" />
               <col className="w-[10rem]" />
@@ -1599,6 +1657,7 @@ export default function AdminGroupsClient({
             <TableHeader>
               <TableRow className="bg-muted/100">
                 <TableHead className="w-10 px-4" aria-label="Expand" />
+                <TableHead className="px-4">Group name</TableHead>
                 <TableHead className="px-4">Meeting</TableHead>
                 <TableHead className="px-4">Room</TableHead>
                 <TableHead className="px-4">Preference</TableHead>
@@ -1676,6 +1735,13 @@ export default function AdminGroupsClient({
                         </Button>
                       </TableCell>
                       <TableCell className="px-4">
+                        <div className="whitespace-normal">
+                          <div className="font-medium">
+                            {group.group_name ?? "Untitled group"}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4">
                         <div className="space-y-0.5 whitespace-normal">
                           <div className="font-medium">
                             {formatMeeting(group)}
@@ -1740,12 +1806,16 @@ export default function AdminGroupsClient({
                                 </span>
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditGroupDialog(group)}>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem 
+                                style={{ cursor: "pointer" }}
+                                onClick={() => openEditGroupDialog(group)}
+                              >
                                 <Pencil className="size-4" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                style={{ cursor: "pointer" }}
                                 variant="destructive"
                                 disabled={deletingGroupId === group.id}
                                 onClick={() => openDeleteDialog(group)}
@@ -1766,7 +1836,7 @@ export default function AdminGroupsClient({
                         className="bg-muted/5 hover:bg-muted/5"
                       >
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="bg-muted/100 px-4 py-0"
                         >
                           <div className="ml-10 px-4 py-3">
@@ -1827,6 +1897,18 @@ export default function AdminGroupsClient({
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {availabilityStudent && (
+        <StudentAvailabilityDialog
+          open={!!availabilityStudent}
+          onOpenChange={(open) => {
+            if (!open) setAvailabilityStudent(null);
+          }}
+          studentName={availabilityStudent.full_name ?? availabilityStudent.email ?? "Student"}
+          timeSlots={timeSlots}
+          savedSlotIds={availabilityStudent.savedSlotIds}
+        />
       )}
 
       <section className="space-y-4 pt-4">
@@ -1920,8 +2002,16 @@ export default function AdminGroupsClient({
                             <span className="sr-only">Open row actions</span>
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="start">
                           <DropdownMenuItem
+                            style={{ cursor: "pointer" }}
+                            onSelect={() => setAvailabilityStudent(student)}
+                          >
+                            View Availability
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            style={{ cursor: "pointer" }}
                             disabled={groups.length === 0}
                             onClick={() => openAssignDialog(student)}
                           >

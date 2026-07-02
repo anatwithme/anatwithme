@@ -449,7 +449,10 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
                     material beforehand.
                   </p>
 
-                  <label className="flex items-start gap-3 rounded-md border bg-background p-3">
+                  <label 
+                    className="flex items-start gap-3 rounded-md border bg-background p-3"
+                    style={{ cursor: "pointer" }}
+                  >
                     <input
                       type="checkbox"
                       name="group_study_agreement_accepted"

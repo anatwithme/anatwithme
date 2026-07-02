@@ -6,6 +6,7 @@ export type ManualGroupFormInput = {
   meetStartTime: string;
   meetEndTime: string;
   preference: GroupPreference;
+  groupName?: string;
 };
 
 export type ManualGroupInput = ManualGroupFormInput & {
@@ -104,6 +105,18 @@ export function validateManualGroupInput(input: ManualGroupFormInput) {
     return { ok: false as const, error: "Select a valid group preference." };
   }
 
+  const groupName = input.groupName?.trim() ?? "";
+  if (groupName.length === 0) {
+    return { ok: false as const, error: "Enter a group name." };
+  }
+
+  if (groupName.length > 100) {
+    return {
+      ok: false as const,
+      error: "Group name must be 100 characters or less.",
+    };
+  }
+
   const meetStartTime = normalizeTimeString(input.meetStartTime);
   const meetEndTime = normalizeTimeString(input.meetEndTime);
 
@@ -144,6 +157,7 @@ export function validateManualGroupInput(input: ManualGroupFormInput) {
       meetStartTime,
       meetEndTime,
       preference: input.preference,
+      groupName,
     },
   };
 }
