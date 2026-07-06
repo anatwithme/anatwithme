@@ -11,7 +11,8 @@
     "test:matching": "node --experimental-strip-types test-matching.ts",
     "test:group-management": "node --experimental-strip-types test-group-management.ts",
     "test:rooms": "node --experimental-strip-types test-room-assignment.ts",
-    "test:agenda": "node --experimental-strip-types test-student-agenda-selection.ts"
+    "test:agenda": "node --experimental-strip-types test-student-agenda-selection.ts",
+    "test:admin-agenda-crud": "node --experimental-strip-types test-admin-agenda-CRUD.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
