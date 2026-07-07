@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { group } from "console";
+import Link from "next/link";
 
 type StudyMode = "group" | "independent";
 type Preference = "in_person" | "online" | "no_preference";
@@ -443,8 +444,9 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
 
                   <p className="text-muted-foreground">
                     By selecting Group study, you agree to participate respectfully,
-                    communicate with your assigned group, and make a good-faith effort to
-                    attend scheduled study sessions.
+                    communicate with your assigned group, make a good-faith effort to
+                    attend scheduled study sessions fully prepared by going over the 
+                    material beforehand.
                   </p>
 
                   <label 
@@ -467,6 +469,23 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
                 </div>
               </div>
             </div>)}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Research Consent</CardTitle>
+          <CardDescription>
+            You can change your research participation consent status at any time.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <Link href="/consent">
+            <Button type="button">
+              Update Research Consent
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
