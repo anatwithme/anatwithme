@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ProfileForm from "@/components/student/profile-form";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ incomplete?: string | string[] }>;
+}) {
   const supabase = await createClient();
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -12,15 +16,34 @@ export default async function ProfilePage() {
 
   const user = authData.user;
 
+  const params = await searchParams;
+  const incompleteValue = Array.isArray(params.incomplete)
+    ? params.incomplete[0]
+    : params.incomplete;
+  const showCompletionNotice = incompleteValue === "1";
+
   const { data: profile, error } = await supabase
     .from("profile")
     .select(
       "user_id, full_name, email, phone, preference, study_mode, profile_picture_url, bio, group_study_agreement_accepted, member_of(group_id)",
     )
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (error || !profile) {
+  const profileData = profile ?? {
+    user_id: user.id,
+    full_name: null,
+    email: user.email,
+    phone: null,
+    preference: null,
+    study_mode: "group",
+    profile_picture_url: null,
+    bio: null,
+    group_study_agreement_accepted: false,
+    member_of: [],
+  };
+
+  if (error && !profile) {
     return (
       <div className="mx-auto w-full max-w-4xl px-4 py-10">
         <h1 className="mb-3 text-3xl font-bold tracking-tight">Profile</h1>
@@ -39,9 +62,10 @@ export default async function ProfilePage() {
       </header>
       <ProfileForm
         profile={{
-          ...profile,
-          hasAssignedGroup: (profile.member_of?.length ?? 0) > 0,
+          ...profileData,
+          hasAssignedGroup: (profileData.member_of?.length ?? 0) > 0,
         }}
+        showCompletionNotice={showCompletionNotice}
       />
     </div>
   );

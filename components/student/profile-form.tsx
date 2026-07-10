@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   CircleAlert,
@@ -87,8 +88,15 @@ function getInitials(name: string | null, fallbackEmail: string) {
     .join("");
 }
 
-export default function ProfileForm({ profile }: { profile: Profile }) {
+export default function ProfileForm({
+  profile,
+  showCompletionNotice = false,
+}: {
+  profile: Profile;
+  showCompletionNotice?: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const defaultPreference: Preference = profile.preference ?? "no_preference";
   const [studyMode, setStudyMode] = useState<StudyMode>(profile.study_mode);
@@ -127,6 +135,17 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     setToast(null);
 
     const cleanPhone = phoneDisplay.replace(/\D/g, "");
+
+    if (!fullName.trim()) {
+      setToast({ type: "error", text: "Name is required." });
+      return;
+    }
+
+    if (!preference) {
+      setToast({ type: "error", text: "Please select a study preference." });
+      return;
+    }
+
     if (cleanPhone && cleanPhone.length !== 10) {
       setToast({
         type: "error",
@@ -162,6 +181,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         setPhoneDisplay(formatPhoneNumber(cleanPhone));
         setStudyMode(res.updated.study_mode);
         setPreference(res.updated.preference);
+        router.push(res.redirectTo);
       } else {
         setToast({ type: "error", text: res.error ?? "Save failed." });
       }
@@ -174,6 +194,12 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
 
   return (
     <form onSubmit={onSubmit} className="w-full space-y-6 pb-28">
+      {showCompletionNotice ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50/70 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          Please complete your profile before using the rest of the site.
+        </div>
+      ) : null}
+
       {toast ? (
         <div
           role="status"

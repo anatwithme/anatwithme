@@ -11,25 +11,20 @@ export default async function StudentLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData?.user;
 
-  
-  if (!user?.sub) {
+  if (!user?.id) {
     redirect("/login");
   }
 
-  let isAdmin = false;
-  let consentStatus = "pending";
+  const { data: profile } = await supabase
+    .from("profile")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  const { data: profile } = await supabase.from("profile").select("role, consent_status").eq("user_id", user.sub).maybeSingle();
-
-  isAdmin = profile?.role === "admin" || profile?.role === "owner";
-  consentStatus = profile?.consent_status ?? "pending";
-
-  if (consentStatus === "pending") {
-  redirect("/consent");
-}
+  const isAdmin = profile?.role === "admin" || profile?.role === "owner";
 
   return (
     <main className="min-h-screen flex flex-col">
