@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ProfileForm from "@/components/student/profile-form";
+import InstructionPopup from "@/components/student/instruction-popup";
+
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -37,6 +39,12 @@ export default async function ProfilePage() {
           Manage your student details and study preferences.
         </p>
       </header>
+      <InstructionPopup
+        studentId={user.id}
+        popupId="profile-welcome"
+        title="Welcome to your profile!"
+        description="Enter your name, study, and meeting preferences, then visit availability and select times you can meet. Remember to save your changes before you leave this page."
+      />
       <ProfileForm
         profile={{
           ...profile,

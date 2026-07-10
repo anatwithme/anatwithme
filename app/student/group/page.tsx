@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import InstructionPopup from "@/components/student/instruction-popup";
+
 
 const DAY_NAMES = [
   "Monday",
@@ -340,6 +342,12 @@ export default async function GroupPage() {
           </CardContent>
         </Card>
       </div>
+      <InstructionPopup
+        studentId={user.id}
+        popupId="group-welcome"
+        title="Welcome to your group!"
+        description="This is your assigned study group. You can see your meeting details and who you are studying with."
+      />
     </PageShell>
   );
 }
