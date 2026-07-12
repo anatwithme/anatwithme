@@ -11,6 +11,13 @@ import {
 } from "lucide-react";
 import { toggleTaskCompletion } from "@/app/student/agenda/actions";
 
+// StudentAgendaBoard
+// Renders the student-facing view of an agenda (or combined resource sections).
+// Props include the selected agenda, all agendas (for unit-mode), progress
+// summaries, and completion state. The component is intentionally pure and
+// relies on upstream normalization so that `agenda.sections` always contains
+// fully-qualified section and task objects.
+
 type Task = {
   id: number;
   section_id: number;
@@ -217,11 +224,11 @@ export default function StudentAgendaBoard({
 
   useEffect(() => {
     let sectionsToExpand: Section[] = [];
-    
+
     if (viewMode === "unit" && selectedUnit !== null) {
       // In unit mode: expand all sections from agendas in the unit
       const agendasInUnit = allAgendas.filter(
-        (a) => a.unitValue === selectedUnit
+        (a) => a.unitValue === selectedUnit,
       );
       agendasInUnit.forEach((a) => {
         sectionsToExpand.push(...(a.sections ?? []));
@@ -230,10 +237,14 @@ export default function StudentAgendaBoard({
       // In week mode: expand all sections from the selected agenda
       sectionsToExpand = agenda.sections ?? [];
     }
-    
-    setExpandedSectionIds(
-      new Set(sortByOrder(sectionsToExpand).map((section) => section.id)),
-    );
+
+    const frameId = window.requestAnimationFrame(() => {
+      setExpandedSectionIds(
+        new Set(sortByOrder(sectionsToExpand).map((section) => section.id)),
+      );
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
   }, [agenda.id, agenda.sections, viewMode, selectedUnit, allAgendas]);
 
   useEffect(() => {
@@ -453,9 +464,6 @@ export default function StudentAgendaBoard({
                               <h3 className="truncate text-xl font-semibold text-gray-900">
                                 {section.title}
                               </h3>
-                              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
-                                {section.type === "solo" ? "Solo" : "Group"}
-                              </span>
                             </div>
 
                             <p className="mt-2 text-base text-gray-500">

@@ -1,6 +1,10 @@
 import { AgendaManager } from "@/components/admin/agenda-manager";
 import { createClient } from "@/lib/supabase/server";
 
+// Page-level types mirror the DB row shapes returned by Supabase queries.
+// Keeping these local types explicit helps with linting and ensures the
+// admin UI receives fully-populated objects (ids, dates, etc.).
+
 type Task = {
   id: number;
   section_id: number;
@@ -48,6 +52,7 @@ export default async function AgendasPage() {
       )
     `,
     )
+    .gt("week", 0)
     .order("week", { ascending: true });
 
   if (agendaError) {

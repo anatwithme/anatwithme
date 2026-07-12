@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BookOpen,
   CalendarClock,
   ClipboardList,
   UserRound,
@@ -40,6 +41,12 @@ const quickLinks = [
     label: "Profile",
     description: "Keep your name, contact info, and preferences up to date.",
     icon: UserRound,
+  },
+  {
+    href: "/student/resources",
+    label: "Resources",
+    description: "Explore study materials, lab guides, and support links for your course.",
+    icon: BookOpen,
   },
 ];
 

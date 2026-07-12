@@ -9,7 +9,6 @@ import {
   buildCompletedTaskSet,
   getCompletedTaskIdsForAgenda,
 } from "@/lib/progress";
-import { getDefaultAgendaId } from "../../../lib/agenda-selection";
 import { createClient } from "@/lib/supabase/server";
 
 type Task = {
@@ -80,7 +79,7 @@ export default async function StudentAgendaPage({
   // If the user is a member of a group, fetch group members. Otherwise
   // continue and allow the student to view agendas without being grouped.
   let membersData: GroupMember[] | null = [];
-  let membersError: any = null;
+  let membersError: Error | null = null;
   if (membership) {
     const membersRes = await supabase.rpc("get_my_group_members");
     membersData = membersRes.data;
@@ -127,6 +126,7 @@ export default async function StudentAgendaPage({
     `,
     )
     .eq("enabled", true)
+    .gt("week", 0)
     .order("start_date", { ascending: true })
     .order("week", { ascending: true });
 

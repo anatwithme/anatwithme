@@ -6,6 +6,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
+  BookOpen,
   CalendarClock,
   ClipboardList,
   Menu,
@@ -18,7 +19,13 @@ const tabs = [
   { label: "Agenda", href: "/student/agenda", icon: ClipboardList },
   { label: "Group", href: "/student/group", icon: Users },
   { label: "Profile", href: "/student/profile", icon: UserRound },
+  { label: "Resources", href: "/student/resources", icon: BookOpen },
 ];
+
+// Student navigation tabs
+// Provides the top navigation for student pages. Keep the `tabs` array small
+// and stable so other components (admin/student) can reference the same
+// routes when composing UIs.
 
 export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();

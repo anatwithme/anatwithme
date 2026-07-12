@@ -188,6 +188,7 @@ export async function applyDatesToActiveAgendas(
     .from("agenda")
     .select("id")
     .eq("enabled", true)
+    .gt("week", 0)
     .order("week", { ascending: true });
 
   if (error) {
