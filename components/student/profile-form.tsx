@@ -471,8 +471,9 @@ export default function ProfileForm({
                   <p className="text-muted-foreground">
                     By selecting Group study, you agree to participate respectfully,
                     communicate with your assigned group, make a good-faith effort to
-                    attend scheduled study sessions fully prepared by going over the 
-                    material beforehand.
+                    attend scheduled study sessions fully prepared by going over the
+                    material beforehand. Students who engage in disrespectful behavior
+                    may be removed from group study at the discretion of the course faculty.
                   </p>
 
                   <label 
