@@ -9,7 +9,7 @@ import {
   buildCompletedTaskSet,
   getCompletedTaskIdsForAgenda,
 } from "@/lib/progress";
-import { getDefaultAgendaId } from "../../../lib/agenda-selection";
+import { getDefaultAgendaId } from "@/lib/agenda-selection";
 import { createClient } from "@/lib/supabase/server";
 import InstructionPopup from "@/components/student/instruction-popup";
 
