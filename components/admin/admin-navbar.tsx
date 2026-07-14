@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
+  BookOpen,
   Users,
   LayoutGrid,
   Calendar,
@@ -21,8 +22,13 @@ const tabs = [
   { label: "Rooms", href: "/admin/rooms", icon: DoorOpen },
   { label: "Agendas", href: "/admin/agendas", icon: Calendar },
   { label: "Progress", href: "/admin/progress", icon: BarChart3 },
+  { label: "Resources", href: "/admin/resources", icon: BookOpen },
   { label: "Exams", href: "/admin/exams", icon: Bell },
 ];
+
+// Admin navigation
+// Shared top navigation for admin pages. The `tabs` list controls which admin
+// areas are visible and the active-state logic in the component.
 
 export function AdminNavbar() {
   const pathname = usePathname();

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  BookOpen,
   Calendar,
   LayoutGrid,
   Users,
@@ -38,7 +39,16 @@ const quickLinks = [
     icon: BarChart3,
     accent: "from-primary/15 to-primary/5",
   },
+  {
+    href: "/admin/resources",
+    label: "Resources",
+    icon: BookOpen,
+    accent: "from-primary/10 to-primary/5",
+  },
 ];
+
+// Quick links shown on the admin landing page. These are intentionally
+// static so the dashboard remains predictable for instructors.
 
 export default function AdminPage() {
   return (
@@ -111,7 +121,7 @@ export default function AdminPage() {
           >
             Groups
           </Link>
-          {" "}to form the groups.
+          {" "}to form the teams.
         </p>
       </div>
     </section>

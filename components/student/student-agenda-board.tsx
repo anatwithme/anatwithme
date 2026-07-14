@@ -11,6 +11,13 @@ import {
 } from "lucide-react";
 import { toggleTaskCompletion } from "@/app/student/agenda/actions";
 
+// StudentAgendaBoard
+// Renders the student-facing view of an agenda (or combined resource sections).
+// Props include the selected agenda, all agendas (for unit-mode), progress
+// summaries, and completion state. The component is intentionally pure and
+// relies on upstream normalization so that `agenda.sections` always contains
+// fully-qualified section and task objects.
+
 type Task = {
   id: number;
   section_id: number;
@@ -66,6 +73,7 @@ type Props = {
   selectedUnit: number | null;
   availableUnits: number[];
   hasExplicitSelection: boolean;
+  hideViewModeSelector?: boolean;
   myCompletedTaskSet: Set<number>;
   // Group completion records are used to compute group progress percentage.
   groupCompletions: Array<{
@@ -127,6 +135,7 @@ export default function StudentAgendaBoard({
   selectedUnit,
   availableUnits,
   hasExplicitSelection,
+  hideViewModeSelector = false,
   myCompletedTaskSet,
   groupCompletions,
   memberIds,
@@ -175,8 +184,14 @@ export default function StudentAgendaBoard({
     [agenda.sections, viewMode, selectedUnit, allAgendas],
   );
 
-  // Calculate progress based on current sections (which change by unit/week mode)
+  // Calculate progress based on current sections (which change by unit/week mode).
+  // Resource-only views should not contribute to progress bars even if their
+  // sections/tasks are rendered in the board.
   const { studentProgressPercent, groupProgressPercent } = useMemo(() => {
+    if (hideViewModeSelector) {
+      return { studentProgressPercent: 0, groupProgressPercent: 0 };
+    }
+
     const taskIdsInSections = sections.flatMap((section) =>
       section.tasks.map((task) => task.id),
     );
@@ -202,7 +217,7 @@ export default function StudentAgendaBoard({
       : 0;
     
     return { studentProgressPercent: studentProgress, groupProgressPercent: groupProgress };
-  }, [sections, myCompletedTaskSet, groupCompletions, memberIds]);
+  }, [hideViewModeSelector, sections, myCompletedTaskSet, groupCompletions, memberIds]);
 
   const selectedIndex = agendaSummaries.findIndex(
     (item) => item.id === selectedAgendaId,
@@ -217,11 +232,11 @@ export default function StudentAgendaBoard({
 
   useEffect(() => {
     let sectionsToExpand: Section[] = [];
-    
+
     if (viewMode === "unit" && selectedUnit !== null) {
       // In unit mode: expand all sections from agendas in the unit
       const agendasInUnit = allAgendas.filter(
-        (a) => a.unitValue === selectedUnit
+        (a) => a.unitValue === selectedUnit,
       );
       agendasInUnit.forEach((a) => {
         sectionsToExpand.push(...(a.sections ?? []));
@@ -230,10 +245,14 @@ export default function StudentAgendaBoard({
       // In week mode: expand all sections from the selected agenda
       sectionsToExpand = agenda.sections ?? [];
     }
-    
-    setExpandedSectionIds(
-      new Set(sortByOrder(sectionsToExpand).map((section) => section.id)),
-    );
+
+    const frameId = window.requestAnimationFrame(() => {
+      setExpandedSectionIds(
+        new Set(sortByOrder(sectionsToExpand).map((section) => section.id)),
+      );
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
   }, [agenda.id, agenda.sections, viewMode, selectedUnit, allAgendas]);
 
   useEffect(() => {
@@ -302,117 +321,121 @@ export default function StudentAgendaBoard({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex-1">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-gray-700">
-                {viewMode === "week" ? "Week" : "Unit"}
-              </span>
-              <div className="flex rounded-full border border-gray-300 bg-white p-1">
-                <button
-                  style={{ cursor: "pointer" }}
-                  type="button"
-                  onClick={() => setViewMode("week")}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    viewMode === "week"
-                      ? "bg-[#BB0000] text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Week
-                </button>
-                <button
-                  style={{ cursor: "pointer" }}
-                  type="button"
-                  onClick={() => setViewMode("unit")}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    viewMode === "unit"
-                      ? "bg-[#BB0000] text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Unit
-                </button>
+      {!hideViewModeSelector ? (
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex-1">
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">
+                  {viewMode === "week" ? "Week" : "Unit"}
+                </span>
+                <div className="flex rounded-full border border-gray-300 bg-white p-1">
+                  <button
+                    style={{ cursor: "pointer" }}
+                    type="button"
+                    onClick={() => setViewMode("week")}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                      viewMode === "week"
+                        ? "bg-[#BB0000] text-white"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Week
+                  </button>
+                  <button
+                    style={{ cursor: "pointer" }}
+                    type="button"
+                    onClick={() => setViewMode("unit")}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                      viewMode === "unit"
+                        ? "bg-[#BB0000] text-white"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Unit
+                  </button>
+                </div>
               </div>
+              {viewMode === "week" ? (
+                <select
+                  style={{ cursor: "pointer" }}
+                  id="agenda-selector"
+                  value={selectedAgendaId}
+                  onChange={(e) => changeAgenda(Number(e.target.value))}
+                  className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+                >
+                  {agendaSummaries.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              {viewMode === "unit" ? (
+                <select
+                  id="unit-selector"
+                  value={selectedUnit ?? ""}
+                  onChange={(e) => changeUnit(Number(e.target.value))}
+                  className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+                >
+                  {availableUnits.map((unit) => (
+                    <option key={unit} value={unit}>
+                      Unit {unit}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </div>
-            {viewMode === "week" ? (
-              <select
+
+            <div className="flex items-center gap-2">
+              <button
                 style={{ cursor: "pointer" }}
-                id="agenda-selector"
-                value={selectedAgendaId}
-                onChange={(e) => changeAgenda(Number(e.target.value))}
-                className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+                type="button"
+                onClick={() => previousAgenda && changeAgenda(previousAgenda.id)}
+                disabled={!previousAgenda}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {agendaSummaries.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            {viewMode === "unit" ? (
-              <select
-                id="unit-selector"
-                value={selectedUnit ?? ""}
-                onChange={(e) => changeUnit(Number(e.target.value))}
-                className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+
+              <button
+                style={{ cursor: "pointer" }}
+                type="button"
+                onClick={() => nextAgenda && changeAgenda(nextAgenda.id)}
+                disabled={!nextAgenda}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {availableUnits.map((unit) => (
-                  <option key={unit} value={unit}>
-                    Unit {unit}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              style={{ cursor: "pointer" }}
-              type="button"
-              onClick={() => previousAgenda && changeAgenda(previousAgenda.id)}
-              disabled={!previousAgenda}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-
-            <button
-              style={{ cursor: "pointer" }}
-              type="button"
-              onClick={() => nextAgenda && changeAgenda(nextAgenda.id)}
-              disabled={!nextAgenda}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-3 space-y-2 text-sm text-gray-500">
-          {viewMode === "week" ? (
-            <div>
-              {formatDate(agenda.start_date)} - {formatDate(agenda.end_date)}
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-          ) : null}
-          <div className="text-sm text-gray-500">
-            Display mode: <span className="font-medium text-gray-900">{viewMode === "week" ? "Week" : "Unit"}</span>
+          </div>
+
+          <div className="mt-3 space-y-2 text-sm text-gray-500">
+            {viewMode === "week" ? (
+              <div>
+                {formatDate(agenda.start_date)} - {formatDate(agenda.end_date)}
+              </div>
+            ) : null}
+            <div className="text-sm text-gray-500">
+              Display mode: <span className="font-medium text-gray-900">{viewMode === "week" ? "Week" : "Unit"}</span>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className={`grid items-stretch gap-5 ${hideViewModeSelector ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1fr)_300px]"}`}>
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold text-gray-900">Sections</h2>
               <p className="mt-1 text-sm text-gray-500">
-                {viewMode === "unit"
-                  ? `All sections for Unit ${selectedUnit}`
-                  : "Scroll sideways to move through the week's sections and tasks."}
+                {hideViewModeSelector
+                  ? "Browse the shared sections and tasks published for this resource."
+                  : viewMode === "unit"
+                    ? `All sections for Unit ${selectedUnit}`
+                    : "Scroll sideways to move through the week's sections and tasks."}
               </p>
             </div>
 
@@ -453,9 +476,6 @@ export default function StudentAgendaBoard({
                               <h3 className="truncate text-xl font-semibold text-gray-900">
                                 {section.title}
                               </h3>
-                              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
-                                {section.type === "solo" ? "Solo" : "Group"}
-                              </span>
                             </div>
 
                             <p className="mt-2 text-base text-gray-500">
@@ -566,54 +586,6 @@ export default function StudentAgendaBoard({
           )}
         </div>
 
-        <aside className="h-full">
-          <div className="flex h-full min-h-[420px] flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Progress</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {viewMode === "unit"
-                  ? `Track how you and your group are doing for Unit ${selectedUnit}.`
-                  : "Track how you and your group are doing for this week."}
-              </p>
-            </div>
-
-            <div className="mt-8 space-y-6">
-              <ProgressBar 
-                label={viewMode === "unit" ? `Your Progress (Unit ${selectedUnit})` : "Your Progress"} 
-                percent={studentProgressPercent} 
-              />
-              {hasGroup ? (
-                <ProgressBar 
-                  label={viewMode === "unit" ? `Group Progress (Unit ${selectedUnit})` : "Group Progress"} 
-                  percent={groupProgressPercent} 
-                />
-              ) : null}
-              <ProgressBar label="Overall Course Progress" percent={overallProgressPercent} />
-            </div>
-
-            <div className="mt-auto pt-8">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-gray-50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Sections
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">
-                    {sections.length}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-gray-50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Tasks
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">
-                    {totalTasks}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
       </div>
     </div>
   );
