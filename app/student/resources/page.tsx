@@ -216,6 +216,7 @@ export default async function StudentResourcesPage() {
         selectedUnit={null}
         availableUnits={[]}
         hasExplicitSelection={false}
+        hideViewModeSelector
         myCompletedTaskSet={myCompletedTaskSet}
         groupCompletions={groupCompletions ?? []}
         memberIds={memberIds}
