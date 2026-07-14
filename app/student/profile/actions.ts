@@ -28,7 +28,7 @@ function isStudyMode(value: string): value is StudyMode {
 }
 
 type ActionResult =
-  | { ok: true; updated: UpdatedProfile }
+  | { ok: true; updated: UpdatedProfile; redirectTo: string }
   | { ok: false; error: string };
 
 const BUCKET = "profile-pictures";
@@ -50,8 +50,12 @@ export async function updateStudentProfile(
   const studyMode = String(formData.get("study_mode") ?? "group");
   const groupStudyAgreementAccepted = String(formData.get("group_study_agreement_accepted") ?? "false") === "true";
 
-  if (!isStudentPreference(preference)) {
-    return { ok: false, error: "Invalid preference value." };
+  if (!full_name) {
+    return { ok: false, error: "Name is required." };
+  }
+
+  if (!preference || !isStudentPreference(preference)) {
+    return { ok: false, error: "Please select a study preference." };
   }
 
   if (!isStudyMode(studyMode)) {
@@ -76,7 +80,7 @@ export async function updateStudentProfile(
     .from("profile")
     .select("member_of(group_id)")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (existingProfileError) {
     return { ok: false, error: "Failed to load your current profile state." };
@@ -150,8 +154,7 @@ export async function updateStudentProfile(
 
   const { data, error } = await supabase
     .from("profile")
-    .update(payload)
-    .eq("user_id", user.id)
+    .upsert({ ...payload, user_id: user.id, email: user.email ?? null }, { onConflict: "user_id" })
     .select(
       "user_id, email, full_name, phone, preference, study_mode, profile_picture_url, bio, group_study_agreement_accepted"
     )
@@ -160,5 +163,6 @@ export async function updateStudentProfile(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/student/profile");
-  return { ok: true, updated: data };
+  revalidatePath("/student");
+  return { ok: true, updated: data, redirectTo: "/student" };
 }

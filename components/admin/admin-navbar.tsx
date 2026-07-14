@@ -12,6 +12,7 @@ import {
   DoorOpen,
   BarChart3,
   Menu,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ const tabs = [
   { label: "Agendas", href: "/admin/agendas", icon: Calendar },
   { label: "Progress", href: "/admin/progress", icon: BarChart3 },
   { label: "Resources", href: "/admin/resources", icon: BookOpen },
+  { label: "Exams", href: "/admin/exams", icon: Bell },
 ];
 
 // Admin navigation

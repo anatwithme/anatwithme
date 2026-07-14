@@ -1,9 +1,9 @@
 "use client";
 
-import { CalendarPlus, Trash2 } from "lucide-react";
+import { CalendarPlus, Trash2, Pencil, Check, X } from "lucide-react";
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createExam, deleteExam } from "@/app/admin/exams/action";
+import { createExam, deleteExam, updateExam } from "@/app/admin/exams/action";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -50,11 +50,50 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
 
   const [createTitle, setCreateTitle] = useState("");
   const [createDate, setCreateDate] = useState("");
+  
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const resetCreateForm = () => {
     setCreateTitle("");
     setCreateDate("");
     setShowCreateForm(false);
+  };
+
+  const startEditing = (exam: Exam) => {
+    setActionError(null);
+    setEditingId(exam.id);
+    setEditTitle(exam.title);
+    setEditDate(exam.exam_date);
+  };
+  
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditDate("");
+  };
+  
+  const handleUpdateExam = () => {
+    if (!editingId) return;
+    setActionError(null);
+  
+    if (!editTitle.trim() || !editDate) {
+      setActionError("Title and date are required.");
+      return;
+    }
+  
+    startTransition(async () => {
+      try {
+        await updateExam(editingId, editTitle.trim(), editDate);
+        cancelEditing();
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to update exam.",
+        );
+      }
+    });
   };
 
   const handleCreateExam = (event: FormEvent<HTMLFormElement>) => {
@@ -195,6 +234,56 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
             ) : (
               exams.map((exam) => {
                 const isDeleting = deletingId === exam.id;
+                const isEditing = editingId === exam.id;
+
+                if (isEditing) {
+                    return (
+                      <TableRow key={exam.id} className="bg-muted/40">
+                        <TableCell className="px-4">
+                          <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="h-7 text-sm"
+                            disabled={isPending}
+                            autoFocus
+                          />
+                        </TableCell>
+                        <TableCell className="px-4">
+                          <Input
+                            type="date"
+                            value={editDate}
+                            onChange={(e) => setEditDate(e.target.value)}
+                            className="h-7 text-sm"
+                            disabled={isPending}
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={handleUpdateExam}
+                              disabled={isPending}
+                            >
+                              <Check className="h-4 w-4" />
+                              <span className="sr-only">Save</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={cancelEditing}
+                              disabled={isPending}
+                            >
+                              <X className="h-4 w-4" />
+                              <span className="sr-only">Cancel</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
                 return (
                   <TableRow key={exam.id} className={isDeleting ? "opacity-50" : ""}>
                     <TableCell className="px-4 font-medium">{exam.title}</TableCell>
@@ -202,6 +291,17 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                       {formatExamDate(exam.exam_date)}
                     </TableCell>
                     <TableCell className="px-4 text-right">
+                    <div className="flex justify-end gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isPending || isDeleting}
+                        onClick={() => startEditing(exam)}
+                    >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Edit</span>
+                    </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -212,6 +312,7 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete</span>
                       </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

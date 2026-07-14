@@ -9,7 +9,9 @@ import {
   buildCompletedTaskSet,
   getCompletedTaskIdsForAgenda,
 } from "@/lib/progress";
+import { getDefaultAgendaId } from "@/lib/agenda-selection";
 import { createClient } from "@/lib/supabase/server";
+import InstructionPopup from "@/components/student/instruction-popup";
 
 type Task = {
   id: number;
@@ -143,6 +145,14 @@ export default async function StudentAgendaPage({
   if (agendas.length === 0) {
     return (
       <AgendaEmptyShell>
+        <InstructionPopup
+          studentId={user.id}
+          popupId="welcome"
+          title="Welcome to your agenda!"
+          description="Before you get started, please go to your profile and set your name, study, and meeting preferences. Then visit availability and select times you can meet."
+          actionLabel="Go to profile"
+          actionHref="/student/profile"
+        />
         <EmptyState
           title="No agendas published yet"
           description="Your instructor hasn't published any agendas. Check back soon."
@@ -223,18 +233,11 @@ export default async function StudentAgendaPage({
     requestedUnit <= 5 &&
     agendas.some((agenda) => agenda.unitValue === requestedUnit);
 
-  const earliestIncompleteAgenda = agendaSummaries.find(
-    (agenda) => agenda.totalTasks > 0 && agenda.studentProgressPercent < 100,
-  );
-
-  const defaultAgendaId =
-    earliestIncompleteAgenda?.id ??
-    agendaSummaries[agendaSummaries.length - 1]?.id ??
-    agendaSummaries[0].id;
-
-  const selectedAgendaId = hasExplicitAgendaSelection
-    ? requestedAgendaId
-    : defaultAgendaId;
+  const selectedAgendaId = getDefaultAgendaId({
+    agendas,
+    agendaSummaries,
+    requestedAgendaId: hasExplicitAgendaSelection ? requestedAgendaId : Number.NaN,
+  });
 
   const selectedAgenda =
     (hasExplicitAgendaSelection &&
@@ -266,6 +269,14 @@ export default async function StudentAgendaPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:py-10">
+      <InstructionPopup
+        studentId={user.id}
+        popupId="welcome"
+        title="Welcome to your agenda!"
+        description="Before you get started, please go to your profile and set your name, study, and meeting preferences. Then visit availability and select times you can meet."
+        actionLabel="Go to profile"
+        actionHref="/student/profile"
+      />
       <AgendaHeader />
       {examData && daysUntilExam !== null && daysUntilExam <= 7 && (
         <ExamReminderBanner examTitle={examData.title} daysUntilExam={daysUntilExam} />
