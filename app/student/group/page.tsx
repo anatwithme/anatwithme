@@ -47,6 +47,20 @@ type GroupMember = {
   bio: string | null;
 };
 
+type GroupRole =
+  | "Emcee"
+  | "Topic 1 Lead"
+  | "Topic 2 Lead"
+  | "Topic 3 Lead"
+  | "Topic 4 Lead"
+
+type GroupRoleAssignment = {
+  group_id: string;
+  user_id: string;
+  role: GroupRole;
+  assigned_on: string;
+}
+
 function formatTime(timeString: string) {
   const [hourStr, minStr] = timeString.split(":");
   const hour = parseInt(hourStr);
@@ -175,6 +189,7 @@ export default async function GroupPage() {
   const { data: membersData, error: membersError } = await supabase.rpc(
     "get_my_group_members",
   );
+
   const members = (membersData ?? []) as GroupMember[];
 
   if (membersError) {
@@ -182,6 +197,18 @@ export default async function GroupPage() {
       groupId: membership.group_id,
       userId: user.id,
       error: membersError,
+    });
+  }
+
+  const { data: rolesData, error: rolesError } = await supabase.rpc("get_my_current_group_roles");
+
+  const roleAssignments = (rolesData ?? []) as GroupRoleAssignment[];
+
+  if (rolesError) {
+    console.error("[student/group] role assignments fetch failed", {
+      groupId: membership.group_id,
+      userId: user.id,
+      error: rolesError,
     });
   }
 
@@ -214,6 +241,30 @@ export default async function GroupPage() {
     if (b.user_id === user.id) return 1;
     return (a.full_name ?? "").localeCompare(b.full_name ?? "");
   });
+
+  const rolesByUserId = new Map(roleAssignments.map((assignment) => [
+    assignment.user_id,
+    assignment,
+  ]));
+
+  const membersByUserId = new Map(members.map((member) => [member.user_id, member]));
+
+  const assignmentsByRole = new Map(roleAssignments.map((assignment) => [
+    assignment.role,
+    membersByUserId.get(assignment.user_id),
+  ]));
+
+  const GROUP_ROLES: GroupRole[] = [
+    "Emcee",
+    "Topic 1 Lead",
+    "Topic 2 Lead",
+    "Topic 3 Lead",
+    "Topic 4 Lead",
+  ]
+
+  const displayedRoles = members.length < 3
+    ? GROUP_ROLES.filter((role) => role !== "Emcee")
+    : GROUP_ROLES;
 
   return (
     <PageShell>
@@ -253,6 +304,50 @@ export default async function GroupPage() {
                 label="Members"
                 value={`${members.length} student${members.length === 1 ? "" : "s"}`}
               />
+            </div>
+
+            <div className="mt-6 border-t pt-5">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold">Review Role Assignments</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Roles assigned for your next group review meeting.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {displayedRoles.map((role) => {
+                  const assignedMember = assignmentsByRole.get(role);
+                  const isYou = assignedMember?.user_id === user.id;
+
+                  return (
+                    <div
+                      key={role}
+                      className="rounded-lg border bg-muted/20 px-4 py-3"
+                    >
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {role}
+                      </p>
+
+                      <div className="mt-1 flex items-center gap-2">
+                        <p
+                          className={cn(
+                            "truncate text-sm font-semibold",
+                            !assignedMember && "text-muted-foreground",
+                          )}
+                        >
+                          {assignedMember?.full_name ?? "Unassigned"}
+                        </p>
+
+                        {isYou ? (
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                            You
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {!isOnline && group.room_overbooked ? (
