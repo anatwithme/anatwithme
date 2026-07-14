@@ -184,8 +184,14 @@ export default function StudentAgendaBoard({
     [agenda.sections, viewMode, selectedUnit, allAgendas],
   );
 
-  // Calculate progress based on current sections (which change by unit/week mode)
+  // Calculate progress based on current sections (which change by unit/week mode).
+  // Resource-only views should not contribute to progress bars even if their
+  // sections/tasks are rendered in the board.
   const { studentProgressPercent, groupProgressPercent } = useMemo(() => {
+    if (hideViewModeSelector) {
+      return { studentProgressPercent: 0, groupProgressPercent: 0 };
+    }
+
     const taskIdsInSections = sections.flatMap((section) =>
       section.tasks.map((task) => task.id),
     );
@@ -211,7 +217,7 @@ export default function StudentAgendaBoard({
       : 0;
     
     return { studentProgressPercent: studentProgress, groupProgressPercent: groupProgress };
-  }, [sections, myCompletedTaskSet, groupCompletions, memberIds]);
+  }, [hideViewModeSelector, sections, myCompletedTaskSet, groupCompletions, memberIds]);
 
   const selectedIndex = agendaSummaries.findIndex(
     (item) => item.id === selectedAgendaId,

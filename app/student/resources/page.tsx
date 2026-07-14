@@ -2,10 +2,7 @@ import { redirect } from "next/navigation";
 import StudentAgendaBoard from "@/components/student/student-agenda-board";
 import { Card, CardContent } from "@/components/ui/card";
 import { WelcomeSkeletons } from "@/components/layout/welcome-skeletons";
-import {
-  buildAgendaSummaries,
-  buildCompletedTaskSet,
-} from "@/lib/progress";
+import { buildCompletedTaskSet } from "@/lib/progress";
 import { createClient } from "@/lib/supabase/server";
 
 // Student resources page
@@ -180,20 +177,7 @@ export default async function StudentResourcesPage() {
       : { data: [] as { user_id: string; task_id: number; completed: boolean }[] };
 
   const myCompletedTaskSet = buildCompletedTaskSet(myCompletions ?? []);
-  const resourceSummaries = buildAgendaSummaries({
-    agendas: [selectedResource],
-    completedTaskIds: myCompletedTaskSet,
-    groupCompletions: groupCompletions ?? [],
-    memberCount: memberIds.length,
-  });
-
-  const totalCompletedOverall = (myCompletions ?? []).filter(
-    (completion) => completion.completed,
-  ).length;
-  const overallProgressPercent =
-    allTaskIds.length > 0
-      ? Math.round((totalCompletedOverall / allTaskIds.length) * 100)
-      : 0;
+  const overallProgressPercent = 0;
 
   return (
     <section className="w-full max-w-7xl px-4 py-6 sm:px-6">
@@ -205,13 +189,13 @@ export default async function StudentResourcesPage() {
           Course resources
         </h1>
         <p className="mx-auto mt-3 max-w-2xl text-base text-muted-foreground">
-          Browse sections and tasks shared by your instructor without resource collections.
+          Browse sections and tasks shared by your instructor.
         </p>
       </div>
       <StudentAgendaBoard
         agenda={selectedResource}
         allAgendas={[selectedResource]}
-        agendaSummaries={resourceSummaries}
+        agendaSummaries={[]}
         selectedAgendaId={selectedResource.id}
         selectedUnit={null}
         availableUnits={[]}

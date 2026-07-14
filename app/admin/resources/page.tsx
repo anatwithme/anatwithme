@@ -64,7 +64,7 @@ export default async function AdminResourcesPage() {
             Resources sections & tasks
           </h1>
           <p className="max-w-2xl text-base text-muted-foreground">
-            Organize sections and tasks in a single shared resource space without collections.
+            Organize sections and tasks in a single shared resource.
           </p>
         </div>
 
