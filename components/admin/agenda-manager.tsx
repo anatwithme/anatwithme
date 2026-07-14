@@ -468,7 +468,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateAgenda} className="space-y-4">
-              <div className="grid items-start gap-4 lg:grid-cols-[5rem_16rem_11rem_11rem_6rem_1fr]">
+              <div className="grid items-start gap-4 lg:grid-cols-[4rem_16rem_11rem_11rem_4rem_1fr]">
                 <div className="grid gap-2">
                   <Label htmlFor="agenda-week">Week</Label>
                   <Input
@@ -526,7 +526,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                     onChange={(e) => setCreateUnitValue(e.target.value)}
                     required
                     disabled={isPending}
-                    className="h-10"
+                    className="h-10 min-w-[4rem]"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -811,7 +811,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                 value={editWeek}
                                 onChange={(e) => setEditWeek(e.target.value)}
                                 disabled={isPending}
-                                className="h-8"
+                                className="h-8 min-w-[4rem]"
                               />
                             </TableCell>
                             <TableCell className="px-4 align-top">
@@ -848,7 +848,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                 value={editUnitValue}
                                 onChange={(e) => setEditUnitValue(e.target.value)}
                                 disabled={isPending}
-                                className="h-8"
+                                className="h-8 min-w-[4rem]"
                               />
                             </TableCell>
                             <TableCell className="px-4 align-top">
