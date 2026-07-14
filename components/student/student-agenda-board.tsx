@@ -586,6 +586,57 @@ export default function StudentAgendaBoard({
           )}
         </div>
 
+        {!hideViewModeSelector ? (
+          <aside className="h-full">
+            <div className="flex h-full min-h-[420px] flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Progress</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {viewMode === "unit"
+                    ? `Track how you and your group are doing for Unit ${selectedUnit}.`
+                    : "Track how you and your group are doing for this week."}
+                </p>
+              </div>
+
+              <div className="mt-8 space-y-6">
+                <ProgressBar
+                  label={viewMode === "unit" ? `Your Progress (Unit ${selectedUnit})` : "Your Progress"}
+                  percent={studentProgressPercent}
+                />
+                {hasGroup ? (
+                  <ProgressBar
+                    label={viewMode === "unit" ? `Group Progress (Unit ${selectedUnit})` : "Group Progress"}
+                    percent={groupProgressPercent}
+                  />
+                ) : null}
+                <ProgressBar label="Overall Course Progress" percent={overallProgressPercent} />
+              </div>
+
+              <div className="mt-auto pt-8">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-gray-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Sections
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-gray-900">
+                      {sections.length}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-gray-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Tasks
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-gray-900">
+                      {totalTasks}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
       </div>
     </div>
   );
