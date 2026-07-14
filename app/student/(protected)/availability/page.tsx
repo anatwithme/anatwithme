@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import InstructionPopup from "@/components/student/instruction-popup";
 
 export default async function AvailabilityPage() {
   const supabase = await createClient();
@@ -104,6 +105,12 @@ export default async function AvailabilityPage() {
         userId={user.id}
         timeSlots={timeSlots}
         savedSlotIds={savedSlotIds}
+      />
+      <InstructionPopup
+        studentId={user.id}
+        popupId="availability-welcome"
+        title="Welcome to your availability!"
+        description="Tell us when you're free so we can place you in a compatible group."
       />
     </PageShell>
   );
