@@ -124,7 +124,7 @@ async function test(name: string, fn: () => Promise<void>): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !process.env.SUPABASE_SECRET_KEY) {
     throw new Error("Missing Supabase service role configuration.");
   }
 
