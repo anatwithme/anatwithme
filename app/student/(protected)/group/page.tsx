@@ -69,6 +69,16 @@ function formatTime(timeString: string) {
   return `${hour12}:${minStr} ${ampm}`;
 }
 
+function formatPhoneNumber(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  return phone;
+}
+
 function getInitials(name: string | null) {
   if (!name) return "?";
   return (
@@ -419,12 +429,14 @@ export default async function GroupPage() {
                             {m.email ? (
                               <span className="truncate">{m.email}</span>
                             ) : null}
-                            {m.phone ? <span>{m.phone}</span> : null}
+                            {m.phone ? <span>{formatPhoneNumber(m.phone)}</span> : null}
                           </div>
                         ) : null}
 
                         {m.bio ? (
                           <p className="mt-2 text-sm leading-relaxed text-foreground/80">
+                            Bio:
+                            <br />
                             {m.bio}
                           </p>
                         ) : null}
