@@ -49,7 +49,7 @@ export default function GroupCalendarDownload() {
         disabled={isDownloading}
       >
         <CalendarPlus className="mr-2 h-4 w-4" />
-        {isDownloading ? "Preparing..." : "Add to calendar"}
+        {isDownloading ? "Preparing..." : "Add to Calendar"}
       </Button>
 
       {error ? (
