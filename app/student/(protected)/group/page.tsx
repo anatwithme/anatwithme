@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BookOpen, Calendar, Clock, MapPin, Users, Video } from "lucide-react";
+import { BookOpen, Calendar, Clock, Group, MapPin, Users, Video } from "lucide-react";
 
 import AvatarLightbox from "@/components/student/avatar-lightbox";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import InstructionPopup from "@/components/student/instruction-popup";
-
+import GroupCalendarDownload from "@/components/student/group-calendar-download";
 
 const DAY_NAMES = [
   "Monday",
@@ -272,9 +272,14 @@ export default async function GroupPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Meeting details</CardTitle>
-            <CardDescription>
-              Your weekly group meeting and how to find it.
-            </CardDescription>
+
+            <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardDescription>
+                Your weekly group meeting and how to find it.
+              </CardDescription>
+
+              <GroupCalendarDownload />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
