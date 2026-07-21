@@ -30,9 +30,9 @@ import {
   createManualGroup,
   deleteGroup,
   removeStudentFromGroup,
-  runMatchingAction,
   updateManualGroup,
-} from "@/lib/actions/admin-actions";
+} from "@/lib/actions/admin/group-actions";
+import { runMatchingAction } from "@/lib/actions/admin/matching-actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,

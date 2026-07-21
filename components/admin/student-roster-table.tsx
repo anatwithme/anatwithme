@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { removeStudent, promoteStudent } from "@/lib/actions/admin-actions";
+import { removeStudent, promoteStudent } from "@/lib/actions/admin/student-actions";
 import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 
 const DAY_NAMES = [
