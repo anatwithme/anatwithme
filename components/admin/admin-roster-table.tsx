@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { removeAdmin } from "@/lib/actions/admin-actions";
+import { removeAdmin } from "@/lib/actions/admin/student-actions";
 
 type Admin = {
   user_id: string;
