@@ -5,32 +5,45 @@ import { X } from "lucide-react";
 
 type Props = {
   examTitle: string;
-  daysUntilExam: number;
+  examStart: string;
+  examEnd: string;
 };
 
-export default function ExamReminderBanner({ examTitle, daysUntilExam }: Props) {
+export default function ExamReminderBanner({ examTitle, examStart, examEnd }: Props) {
   const [dismissed, setDismissed] = useState(false);
 
-  if (daysUntilExam < 0) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const isHardReminder = daysUntilExam <= 3;
+  const start = new Date(`${examStart}T00:00:00`);
+  const end = new Date(`${examEnd}T00:00:00`);
 
-  if (dismissed && !isHardReminder) return null;
+  
+  if (today > end) return null;
+
+  const isExamWeek = today >= start && today <= end;
+  const daysUntilStart = Math.ceil((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const isUpcoming = daysUntilStart > 0 && daysUntilStart <= 14;
+
+  //only show if exam week or within 2 weeks
+  if (!isExamWeek && !isUpcoming) return null;
+
+  if (dismissed && !isExamWeek) return null;
 
   return (
     <div
       className={`mb-6 flex items-center justify-between rounded-lg border px-4 py-3 text-sm ${
-        isHardReminder
+        isExamWeek
           ? "border-red-300 bg-red-50 text-red-800"
           : "border-yellow-300 bg-yellow-50 text-yellow-800"
       }`}
     >
       <p className="font-medium">
-        {daysUntilExam === 0
-          ? `${examTitle} is today!`
-          : `${examTitle} is in ${daysUntilExam} day${daysUntilExam === 1 ? "" : "s"}!`}
+        {isExamWeek
+          ? `${examTitle} is this week!`
+          : `${examTitle} is in ${daysUntilStart} day${daysUntilStart === 1 ? "" : "s"}.`}
       </p>
-      {!isHardReminder && (
+      {!isExamWeek && (
         <button
           style={{ cursor: "pointer" }}
           type="button"

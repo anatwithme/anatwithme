@@ -100,20 +100,15 @@ export default async function StudentAgendaPage({
     (member: GroupMember) => member.user_id,
   );
   
+  const today = new Date().toISOString().split("T")[0];
+
   const { data: examData } = await supabase
     .from("exam")
     .select("*")
-    .gte("exam_date", new Date().toISOString().split("T")[0])
-    .order("exam_date", { ascending: true })
+    .gte("exam_end", today)
+    .order("exam_start", { ascending: true })
     .limit(1)
     .maybeSingle();
-
-  const daysUntilExam = examData
-    ? Math.ceil(
-        (new Date(examData.exam_date).getTime() - new Date().setHours(0, 0, 0, 0)) /
-          (1000 * 60 * 60 * 24),
-      )
-    : null;
 
 
   const { data: agendasData, error: agendasError } = await supabase
@@ -278,8 +273,12 @@ export default async function StudentAgendaPage({
         actionHref="/student/profile"
       />
       <AgendaHeader />
-      {examData && daysUntilExam !== null && daysUntilExam <= 7 && (
-        <ExamReminderBanner examTitle={examData.title} daysUntilExam={daysUntilExam} />
+      {examData && (
+        <ExamReminderBanner
+          examTitle={examData.title}
+          examStart={examData.exam_start}
+          examEnd={examData.exam_end}
+        />
       )}
       <StudentAgendaBoard
         agenda={selectedAgenda}

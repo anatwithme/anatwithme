@@ -26,19 +26,18 @@ import {
 type Exam = {
   id: number;
   title: string;
-  exam_date: string;
+  exam_start: string;
+  exam_end: string;
   created_at: string;
 };
 
-function formatExamDate(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
+function formatExamRange(start: string, end: string) {
+    const s = new Date(`${start}T00:00:00`);
+    const e = new Date(`${end}T00:00:00`);
+    const fmt = new Intl.DateTimeFormat("en-US", { month: "long", day: "2-digit", year: "numeric" });
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return start;
+    return `${fmt.format(s)} – ${fmt.format(e)}`;
+  }
 
 export function ExamManager({ exams }: { exams: Exam[] }) {
   const router = useRouter();
@@ -49,15 +48,18 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [createTitle, setCreateTitle] = useState("");
-  const [createDate, setCreateDate] = useState("");
+  const [createStart, setCreateStart] = useState("");
+  const [createEnd, setCreateEnd] = useState("");
   
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
-  const [editDate, setEditDate] = useState("");
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
 
   const resetCreateForm = () => {
     setCreateTitle("");
-    setCreateDate("");
+    setCreateStart("");
+    setCreateEnd("");
     setShowCreateForm(false);
   };
 
@@ -65,27 +67,29 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
     setActionError(null);
     setEditingId(exam.id);
     setEditTitle(exam.title);
-    setEditDate(exam.exam_date);
+    setEditStart(exam.exam_start);
+    setEditEnd(exam.exam_end);
   };
   
   const cancelEditing = () => {
     setEditingId(null);
     setEditTitle("");
-    setEditDate("");
+    setEditStart("");
+    setEditEnd("");
   };
   
   const handleUpdateExam = () => {
     if (!editingId) return;
     setActionError(null);
   
-    if (!editTitle.trim() || !editDate) {
+    if (!editTitle.trim() || !editStart || !editEnd) {
       setActionError("Title and date are required.");
       return;
     }
   
     startTransition(async () => {
       try {
-        await updateExam(editingId, editTitle.trim(), editDate);
+        await updateExam(editingId, editTitle.trim(), editStart, editEnd);
         cancelEditing();
         router.refresh();
       } catch (error) {
@@ -100,14 +104,14 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
     event.preventDefault();
     setActionError(null);
 
-    if (!createTitle.trim() || !createDate) {
+    if (!createTitle.trim() || !createStart || !createEnd) {
       setActionError("Title and date are required.");
       return;
     }
 
     startTransition(async () => {
       try {
-        await createExam(createTitle.trim(), createDate);
+        await createExam(createTitle.trim(), createStart, createEnd);
         resetCreateForm();
         router.refresh();
       } catch (error) {
@@ -157,7 +161,7 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateExam} className="space-y-4">
-              <div className="grid items-start gap-4 lg:grid-cols-[16rem_11rem]">
+              <div className="grid items-start gap-4 lg:grid-cols-[16rem_11rem_11rem]">
                 <div className="grid gap-2">
                   <Label htmlFor="exam-title">Title</Label>
                   <Input
@@ -169,18 +173,29 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                     disabled={isPending}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="exam-date">Exam date</Label>
-                  <Input
-                    id="exam-date"
+            <div className="grid gap-2">
+                <Label htmlFor="exam-start">Exam start</Label>
+                <Input
+                    id="exam-start"
                     type="date"
-                    value={createDate}
-                    onChange={(e) => setCreateDate(e.target.value)}
+                    value={createStart}
+                    onChange={(e) => setCreateStart(e.target.value)}
                     required
                     disabled={isPending}
-                  />
+                />
                 </div>
-              </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="exam-end">Exam end</Label>
+                    <Input
+                        id="exam-end"
+                        type="date"
+                        value={createEnd}
+                        onChange={(e) => setCreateEnd(e.target.value)}
+                        required
+                        disabled={isPending}
+                    />
+                    </div>
+                </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={isPending}>
                   {isPending ? "Creating..." : "Create exam"}
@@ -249,13 +264,22 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                           />
                         </TableCell>
                         <TableCell className="px-4">
-                          <Input
-                            type="date"
-                            value={editDate}
-                            onChange={(e) => setEditDate(e.target.value)}
-                            className="h-7 text-sm"
-                            disabled={isPending}
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              type="date"
+                              value={editStart}
+                              onChange={(e) => setEditStart(e.target.value)}
+                              className="h-7 text-sm"
+                              disabled={isPending}
+                            />
+                            <Input
+                              type="date"
+                              value={editEnd}
+                              onChange={(e) => setEditEnd(e.target.value)}
+                              className="h-7 text-sm"
+                              disabled={isPending}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="px-4 text-right">
                           <div className="flex justify-end gap-1">
@@ -288,7 +312,7 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                   <TableRow key={exam.id} className={isDeleting ? "opacity-50" : ""}>
                     <TableCell className="px-4 font-medium">{exam.title}</TableCell>
                     <TableCell className="px-4 text-muted-foreground">
-                      {formatExamDate(exam.exam_date)}
+                      {formatExamRange(exam.exam_start, exam.exam_end)}
                     </TableCell>
                     <TableCell className="px-4 text-right">
                     <div className="flex justify-end gap-1">

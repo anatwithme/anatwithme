@@ -2,12 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-export async function createExam(title: string, examDate: string) {
+export async function createExam(title: string, examStart: string, examEnd: string) {
   const supabase = await createClient();
 
   const { error } = await supabase.from("exam").insert({
     title,
-    exam_date: examDate,
+    exam_start: examStart,
+    exam_end: examEnd,
   });
 
   if (error) {
@@ -24,12 +25,12 @@ export async function deleteExam(examId: number) {
     throw new Error(error.message);
   }
 }
-export async function updateExam(id: number, title: string, examDate: string) {
+export async function updateExam(id: number, title: string, examStart: string, examEnd: string) {
     const supabase = await createClient();
   
     const { error } = await supabase
       .from("exam")
-      .update({ title, exam_date: examDate })
+      .update({ title, exam_start: examStart, exam_end: examEnd })
       .eq("id", id);
   
     if (error) {
