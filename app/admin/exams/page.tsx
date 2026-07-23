@@ -7,7 +7,7 @@ export default async function ExamsPage() {
   const { data: examData, error: examError } = await supabase
     .from("exam")
     .select("*")
-    .order("exam_date", { ascending: true });
+    .order("exam_start", { ascending: true });
 
   if (examError) {
     console.error("Failed to fetch exams:", examError.message);
