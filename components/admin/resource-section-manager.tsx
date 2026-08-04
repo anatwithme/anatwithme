@@ -1,8 +1,22 @@
 "use client";
 
+import {
+  ExternalLink,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { FormEvent, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import {
+  createSection,
+  createTask,
+  deleteSection,
+  deleteTask,
+  updateSection,
+  updateTask,
+} from "@/app/admin/resources/action";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,12 +25,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  createSection,
-  createTask,
-} from "@/app/admin/resources/action";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type Task = {
   id: number;
@@ -58,25 +83,108 @@ function sortByOrder<T extends { order: number | null }>(items: T[]) {
   });
 }
 
-export function SectionManager({ resourceId, sections }: SectionManagerProps) {
+export function SectionManager({ resourceId, sections: sectionsProp }: SectionManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
   const [actionError, setActionError] = useState<string | null>(null);
-  const [showSectionForm, setShowSectionForm] = useState(false);
-  const [sectionTitle, setSectionTitle] = useState("");
-  const [sectionDescription, setSectionDescription] = useState("");
-  const [sectionOrder, setSectionOrder] = useState("");
 
-  const sortedSections = sortByOrder(sections ?? []);
+  const [showCreateSectionForm, setShowCreateSectionForm] = useState(false);
+  const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
 
-  const resetSectionForm = () => {
-    setSectionTitle("");
-    setSectionDescription("");
-    setSectionOrder("");
-    setShowSectionForm(false);
+  const [deletingSectionId, setDeletingSectionId] = useState<number | null>(
+    null,
+  );
+  const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+
+  const [createSectionTitle, setCreateSectionTitle] = useState("");
+  const [createSectionDescription, setCreateSectionDescription] = useState("");
+  const [createSectionOrder, setCreateSectionOrder] = useState("");
+
+  const [createTaskSectionId, setCreateTaskSectionId] = useState("");
+  const [createTaskTitle, setCreateTaskTitle] = useState("");
+  const [createTaskDescription, setCreateTaskDescription] = useState("");
+  const [createTaskLink, setCreateTaskLink] = useState("");
+  const [createTaskOrder, setCreateTaskOrder] = useState("");
+
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editSectionTitle, setEditSectionTitle] = useState("");
+  const [editSectionDescription, setEditSectionDescription] = useState("");
+  const [editSectionOrder, setEditSectionOrder] = useState("");
+
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editTaskSectionId, setEditTaskSectionId] = useState("");
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editTaskDescription, setEditTaskDescription] = useState("");
+  const [editTaskLink, setEditTaskLink] = useState("");
+  const [editTaskOrder, setEditTaskOrder] = useState("");
+
+  const sections = useMemo(
+    () => sortByOrder(sectionsProp ?? []),
+    [sectionsProp],
+  );
+  const tasks = useMemo(
+    () =>
+      sections.flatMap((section) =>
+        sortByOrder(section.tasks ?? []).map((task) => ({
+          ...task,
+          sectionTitle: section.title,
+        })),
+      ),
+    [sections],
+  );
+
+  const resetCreateSectionForm = () => {
+    setCreateSectionTitle("");
+    setCreateSectionDescription("");
+    setCreateSectionOrder("");
+    setShowCreateSectionForm(false);
   };
 
-  const handleCreateSection = (event: React.FormEvent<HTMLFormElement>) => {
+  const resetCreateTaskForm = () => {
+    setCreateTaskSectionId(sections[0] ? String(sections[0].id) : "");
+    setCreateTaskTitle("");
+    setCreateTaskDescription("");
+    setCreateTaskLink("");
+    setCreateTaskOrder("");
+    setShowCreateTaskForm(false);
+  };
+
+  const beginEditSection = (section: Section) => {
+    setActionError(null);
+    setEditingSectionId(section.id);
+    setEditSectionTitle(section.title);
+    setEditSectionDescription(section.description ?? "");
+    setEditSectionOrder(section.order != null ? String(section.order) : "");
+  };
+
+  const cancelEditSection = () => {
+    setEditingSectionId(null);
+    setEditSectionTitle("");
+    setEditSectionDescription("");
+    setEditSectionOrder("");
+  };
+
+  const beginEditTask = (task: Task) => {
+    setActionError(null);
+    setEditingTaskId(task.id);
+    setEditTaskSectionId(String(task.section_id));
+    setEditTaskTitle(task.title);
+    setEditTaskDescription(task.description ?? "");
+    setEditTaskLink(task.link ?? "");
+    setEditTaskOrder(task.order != null ? String(task.order) : "");
+  };
+
+  const cancelEditTask = () => {
+    setEditingTaskId(null);
+    setEditTaskSectionId("");
+    setEditTaskTitle("");
+    setEditTaskDescription("");
+    setEditTaskLink("");
+    setEditTaskOrder("");
+  };
+
+  const handleCreateSection = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setActionError(null);
 
@@ -87,11 +195,11 @@ export function SectionManager({ resourceId, sections }: SectionManagerProps) {
         // and the client only needs title, description, and optional order.
         await createSection(
           resourceId,
-          sectionTitle.trim(),
-          sectionDescription.trim() || null,
-          parseOrder(sectionOrder),
+          createSectionTitle.trim(),
+          createSectionDescription.trim() || null,
+          parseOrder(createSectionOrder),
         );
-        resetSectionForm();
+        resetCreateSectionForm();
         router.refresh();
       } catch (error) {
         setActionError(
@@ -101,243 +209,757 @@ export function SectionManager({ resourceId, sections }: SectionManagerProps) {
     });
   };
 
-  return (
-    <div className="space-y-4">
-      {actionError && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {actionError}
-        </div>
-      )}
+  const handleUpdateSection = (sectionId: number) => {
+    setActionError(null);
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add a section</CardTitle>
-          <CardDescription>
-            Organize related items into sections, then add tasks underneath each one.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {showSectionForm ? (
-            <form onSubmit={handleCreateSection} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="section-title">Section title</Label>
-                  <Input
-                    id="section-title"
-                    value={sectionTitle}
-                    onChange={(e) => setSectionTitle(e.target.value)}
-                    placeholder="e.g. Study materials"
-                    required
-                    disabled={isPending}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="section-order">Order</Label>
-                  <Input
-                    id="section-order"
-                    type="number"
-                    min={1}
-                    value={sectionOrder}
-                    onChange={(e) => setSectionOrder(e.target.value)}
-                    placeholder="Optional"
-                    disabled={isPending}
-                  />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="section-description">Description</Label>
-                <Input
-                  id="section-description"
-                  value={sectionDescription}
-                  onChange={(e) => setSectionDescription(e.target.value)}
-                  placeholder="Optional details"
-                  disabled={isPending}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? "Creating..." : "Create section"}
-                </Button>
-                <Button type="button" variant="ghost" onClick={resetSectionForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <Button type="button" variant="outline" onClick={() => setShowSectionForm(true)}>
-              <Plus className="mr-2 size-4" />
-              Add section
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+    startTransition(async () => {
+      try {
+        await updateSection(
+          sectionId,
+          resourceId,
+          editSectionTitle.trim(),
+          editSectionDescription.trim() || null,
+          parseOrder(editSectionOrder),
+        );
+        cancelEditSection();
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to update section.",
+        );
+      }
+    });
+  };
 
-      <div className="space-y-3">
-        {sortedSections.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No sections yet. Add one to start organizing your course content.
-            </CardContent>
-          </Card>
-        ) : (
-          sortedSections.map((section) => (
-            <Card key={section.id}>
-              <CardHeader>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-lg">{section.title}</CardTitle>
-                    <CardDescription>
-                      {section.description || "No description"}
-                    </CardDescription>
-                  </div>
-                  {section.order ? (
-                    <div className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                      Order {section.order}
-                    </div>
-                  ) : null}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Tasks</p>
-                  {section.tasks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No tasks yet for this section.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {sortByOrder(section.tasks).map((task) => (
-                        <li key={task.id} className="rounded-lg border bg-muted/20 p-3 text-sm">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="font-medium">{task.title}</div>
-                            {task.order ? (
-                              <span className="text-xs text-muted-foreground">
-                                {task.order}
-                              </span>
-                            ) : null}
-                          </div>
-                          {task.description ? (
-                            <div className="mt-1 text-muted-foreground">
-                              {task.description}
-                            </div>
-                          ) : null}
-                          {task.link ? (
-                            <a
-                              href={task.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-2 inline-flex text-primary underline-offset-4 hover:underline"
-                            >
-                              Open link
-                            </a>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+  const handleDeleteSection = (sectionId: number) => {
+    setActionError(null);
+    setDeletingSectionId(sectionId);
 
-                <TaskForm resourceId={resourceId} sectionId={section.id} />
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
+    startTransition(async () => {
+      try {
+        await deleteSection(sectionId, resourceId);
+        if (editingSectionId === sectionId) {
+          cancelEditSection();
+        }
+        if (editingTaskId != null) {
+          const editingTaskStillExists = tasks.some(
+            (task) =>
+              task.id === editingTaskId && task.section_id !== sectionId,
+          );
+          if (!editingTaskStillExists) {
+            cancelEditTask();
+          }
+        }
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to delete section.",
+        );
+      } finally {
+        setDeletingSectionId(null);
+      }
+    });
+  };
 
-function TaskForm({
-  resourceId,
-  sectionId,
-}: {
-  resourceId: number;
-  sectionId: number;
-}) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [link, setLink] = useState("");
-  const [order, setOrder] = useState("");
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateTask = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setActionError(null);
+
+    const parsedSectionId = Number.parseInt(createTaskSectionId, 10);
+    if (!Number.isInteger(parsedSectionId) || parsedSectionId <= 0) {
+      setActionError("Select a section before creating a task.");
+      return;
+    }
 
     startTransition(async () => {
       try {
         await createTask(
           resourceId,
-          sectionId,
-          title.trim(),
-          description.trim() || null,
-          link.trim() || null,
-          parseOrder(order),
+          parsedSectionId,
+          createTaskTitle.trim(),
+          createTaskDescription.trim() || null,
+          createTaskLink.trim() || null,
+          parseOrder(createTaskOrder),
         );
-        setTitle("");
-        setDescription("");
-        setLink("");
-        setOrder("");
+        resetCreateTaskForm();
         router.refresh();
-      } catch {
-        // errors are surfaced by the action; no-op here to keep the UI stable
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to create task.",
+        );
+      }
+    });
+  };
+
+  const handleUpdateTask = (taskId: number) => {
+    setActionError(null);
+
+    const parsedSectionId = Number.parseInt(editTaskSectionId, 10);
+    if (!Number.isInteger(parsedSectionId) || parsedSectionId <= 0) {
+      setActionError("Select a section before saving a task.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        await updateTask(
+          taskId,
+          resourceId,
+          parsedSectionId,
+          editTaskTitle.trim(),
+          editTaskDescription.trim() || null,
+          editTaskLink.trim() || null,
+          parseOrder(editTaskOrder),
+        );
+        cancelEditTask();
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to update task.",
+        );
+      }
+    });
+  };
+
+  const handleDeleteTask = (taskId: number) => {
+    setActionError(null);
+    setDeletingTaskId(taskId);
+
+    startTransition(async () => {
+      try {
+        await deleteTask(taskId, resourceId);
+        if (editingTaskId === taskId) {
+          cancelEditTask();
+        }
+        router.refresh();
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : "Failed to delete task.",
+        );
+      } finally {
+        setDeletingTaskId(null);
       }
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border bg-background p-3">
-      <p className="text-sm font-medium">Add a task</p>
-      <div className="grid gap-3 md:grid-cols-[1fr_120px]">
-        <div className="grid gap-2">
-          <Label htmlFor={`task-title-${sectionId}`}>Task title</Label>
-          <Input
-            id={`task-title-${sectionId}`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Review slides"
-            required
-            disabled={isPending}
-          />
+    <div className="space-y-8">
+      {actionError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {actionError}
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`task-order-${sectionId}`}>Order</Label>
-          <Input
-            id={`task-order-${sectionId}`}
-            type="number"
-            min={1}
-            value={order}
-            onChange={(e) => setOrder(e.target.value)}
-            placeholder="Optional"
-            disabled={isPending}
-          />
+      )}
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold">Sections</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage the section rows that belong to this resource.
+            </p>
+          </div>
+          {!showCreateSectionForm && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setActionError(null);
+                setShowCreateSectionForm(true);
+              }}
+            >
+              <Plus className="size-4" />
+              Add section
+            </Button>
+          )}
         </div>
-      </div>
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
-        <div className="grid gap-2">
-          <Label htmlFor={`task-description-${sectionId}`}>Description</Label>
-          <Input
-            id={`task-description-${sectionId}`}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional"
-            disabled={isPending}
-          />
+
+        {showCreateSectionForm && (
+          <Card className="rounded-none">
+            <CardHeader>
+              <CardTitle>New section</CardTitle>
+              <CardDescription>Add a section to this resource.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateSection} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-[6rem_1fr_1fr]">
+                  <div className="grid gap-2">
+                    <Label htmlFor="section-order">
+                      Order{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <Input
+                      id="section-order"
+                      type="number"
+                      min={1}
+                      value={createSectionOrder}
+                      onChange={(e) => setCreateSectionOrder(e.target.value)}
+                      placeholder="1"
+                      disabled={isPending}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="section-title">Title</Label>
+                    <Input
+                      id="section-title"
+                      value={createSectionTitle}
+                      onChange={(e) => setCreateSectionTitle(e.target.value)}
+                      placeholder="e.g. Study materials"
+                      required
+                      disabled={isPending}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="section-description">
+                      Description{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <textarea
+                      id="section-description"
+                      value={createSectionDescription}
+                      onChange={(e) =>
+                        setCreateSectionDescription(e.target.value)
+                      }
+                      placeholder="Section details..."
+                      disabled={isPending}
+                      rows={1}
+                      className="flex min-h-9.5 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? "Adding..." : "Add section"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={resetCreateSectionForm}
+                    disabled={isPending}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="border">
+          <Table>
+            <colgroup>
+              <col className="w-[5rem]" />
+              <col className="w-[16rem]" />
+              <col />
+              <col className="w-14" />
+            </colgroup>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-4">Order</TableHead>
+                <TableHead className="px-4">Title</TableHead>
+                <TableHead className="px-4">Description</TableHead>
+                <TableHead className="px-4 text-right">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sections.length === 0 && !showCreateSectionForm ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    No sections yet. Add one to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sections.map((section) => {
+                  const isEditing = editingSectionId === section.id;
+                  const isDeleting = deletingSectionId === section.id;
+
+                  if (isEditing) {
+                    return (
+                      <TableRow key={section.id} className="bg-muted/40">
+                        <TableCell className="px-4 align-top">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={editSectionOrder}
+                            onChange={(e) =>
+                              setEditSectionOrder(e.target.value)
+                            }
+                            disabled={isPending}
+                            placeholder="—"
+                            className="h-8 w-16"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 align-top">
+                          <Input
+                            value={editSectionTitle}
+                            onChange={(e) =>
+                              setEditSectionTitle(e.target.value)
+                            }
+                            disabled={isPending}
+                            className="h-8"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 align-top">
+                          <textarea
+                            value={editSectionDescription}
+                            onChange={(e) =>
+                              setEditSectionDescription(e.target.value)
+                            }
+                            disabled={isPending}
+                            rows={1}
+                            className="flex min-h-9.5 w-full resize-y rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 text-right align-top">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="ghost"
+                              onClick={cancelEditSection}
+                              disabled={isPending}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              size="xs"
+                              onClick={() => handleUpdateSection(section.id)}
+                              disabled={isPending}
+                            >
+                              {isPending ? "Saving..." : "Save"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return (
+                    <TableRow
+                      key={section.id}
+                      className={cn(isDeleting && "opacity-50")}
+                    >
+                      <TableCell className="px-4">
+                        {section.order != null ? (
+                          <span className="inline-flex h-6 w-8 items-center justify-center rounded bg-muted text-xs font-medium tabular-nums">
+                            {section.order}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 font-medium">
+                        {section.title}
+                      </TableCell>
+                      <TableCell className="px-4 text-muted-foreground">
+                        <span className="line-clamp-2">
+                          {section.description || (
+                            <span className="italic">No description</span>
+                          )}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-4 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              disabled={isPending || isDeleting}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open row actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                beginEditSection(section);
+                              }}
+                            >
+                              <Pencil className="size-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={isDeleting}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleDeleteSection(section.id);
+                              }}
+                            >
+                              <Trash2 className="size-4" />
+                              {isDeleting ? "Deleting..." : "Delete"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`task-link-${sectionId}`}>Link</Label>
-          <Input
-            id={`task-link-${sectionId}`}
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="https://..."
-            disabled={isPending}
-          />
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold">Tasks</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage tasks in a flat table and assign each one to a section.
+            </p>
+          </div>
+          {!showCreateTaskForm && (
+            <Button
+              variant="outline"
+              disabled={sections.length === 0}
+              onClick={() => {
+                setActionError(null);
+                setCreateTaskSectionId(
+                  sections[0] ? String(sections[0].id) : "",
+                );
+                setShowCreateTaskForm(true);
+              }}
+            >
+              <Plus className="size-4" />
+              Add task
+            </Button>
+          )}
         </div>
-      </div>
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "Saving..." : "Add task"}
-      </Button>
-    </form>
+
+        {showCreateTaskForm && sections.length > 0 && (
+          <Card className="rounded-none">
+            <CardHeader>
+              <CardTitle>New task</CardTitle>
+              <CardDescription>
+                Add a task to one of this resource&apos;s sections.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateTask} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-[12rem_6rem_1fr_1fr_1fr]">
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-section">Section</Label>
+                    <select
+                      id="task-section"
+                      value={createTaskSectionId}
+                      onChange={(e) => setCreateTaskSectionId(e.target.value)}
+                      disabled={isPending}
+                      className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {sections.map((section) => (
+                        <option key={section.id} value={section.id}>
+                          {section.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-order">
+                      Order{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <Input
+                      id="task-order"
+                      type="number"
+                      min={1}
+                      value={createTaskOrder}
+                      onChange={(e) => setCreateTaskOrder(e.target.value)}
+                      placeholder="1"
+                      disabled={isPending}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-title">Title</Label>
+                    <Input
+                      id="task-title"
+                      value={createTaskTitle}
+                      onChange={(e) => setCreateTaskTitle(e.target.value)}
+                      placeholder="e.g. Review slides"
+                      required
+                      disabled={isPending}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-description">
+                      Description{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <textarea
+                      id="task-description"
+                      value={createTaskDescription}
+                      onChange={(e) => setCreateTaskDescription(e.target.value)}
+                      placeholder="Task details..."
+                      disabled={isPending}
+                      rows={1}
+                      className="flex min-h-9.5 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-link">
+                      Link{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <Input
+                      id="task-link"
+                      type="url"
+                      value={createTaskLink}
+                      onChange={(e) => setCreateTaskLink(e.target.value)}
+                      placeholder="https://..."
+                      disabled={isPending}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? "Adding..." : "Add task"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={resetCreateTaskForm}
+                    disabled={isPending}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="border">
+          <Table>
+            <colgroup>
+              <col className="w-[12rem]" />
+              <col className="w-[5rem]" />
+              <col className="w-[16rem]" />
+              <col />
+              <col className="w-[16rem]" />
+              <col className="w-14" />
+            </colgroup>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-4">Section</TableHead>
+                <TableHead className="px-4">Order</TableHead>
+                <TableHead className="px-4">Title</TableHead>
+                <TableHead className="px-4">Description</TableHead>
+                <TableHead className="px-4">Link</TableHead>
+                <TableHead className="px-4 text-right">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.length === 0 && !showCreateTaskForm ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    {sections.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Create a section before adding tasks.
+                      </p>
+                    )}
+                    No tasks yet. Add one to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                tasks.map((task) => {
+                  const isEditing = editingTaskId === task.id;
+                  const isDeleting = deletingTaskId === task.id;
+
+                  if (isEditing) {
+                    return (
+                      <TableRow key={task.id} className="bg-muted/40">
+                        <TableCell className="px-4 align-top">
+                          <select
+                            value={editTaskSectionId}
+                            onChange={(e) =>
+                              setEditTaskSectionId(e.target.value)
+                            }
+                            disabled={isPending}
+                            className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {sections.map((section) => (
+                              <option key={section.id} value={section.id}>
+                                {section.title}
+                              </option>
+                            ))}
+                          </select>
+                        </TableCell>
+                        <TableCell className="px-4 align-top">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={editTaskOrder}
+                            onChange={(e) => setEditTaskOrder(e.target.value)}
+                            disabled={isPending}
+                            placeholder="—"
+                            className="h-8 w-16"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 align-top">
+                          <Input
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            disabled={isPending}
+                            className="h-8"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 align-top">
+                          <textarea
+                            value={editTaskDescription}
+                            onChange={(e) =>
+                              setEditTaskDescription(e.target.value)
+                            }
+                            disabled={isPending}
+                            rows={1}
+                            className="flex min-h-9.5 w-full resize-y rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 align-top">
+                          <Input
+                            value={editTaskLink}
+                            onChange={(e) => setEditTaskLink(e.target.value)}
+                            disabled={isPending}
+                            placeholder="https://..."
+                            className="h-8"
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 text-right align-top">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="ghost"
+                              onClick={cancelEditTask}
+                              disabled={isPending}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              size="xs"
+                              onClick={() => handleUpdateTask(task.id)}
+                              disabled={isPending}
+                            >
+                              {isPending ? "Saving..." : "Save"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return (
+                    <TableRow
+                      key={task.id}
+                      className={cn(isDeleting && "opacity-50")}
+                    >
+                      <TableCell className="px-4 text-muted-foreground">
+                        {task.sectionTitle}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        {task.order != null ? (
+                          <span className="inline-flex h-6 w-8 items-center justify-center rounded bg-muted text-xs font-medium tabular-nums">
+                            {task.order}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 font-medium">
+                        {task.title}
+                      </TableCell>
+                      <TableCell className="px-4 text-muted-foreground">
+                        <span className="line-clamp-2">
+                          {task.description || (
+                            <span className="italic">No description</span>
+                          )}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-4">
+                        {task.link ? (
+                          <a
+                            href={task.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            <ExternalLink className="size-3.5" />
+                            Open link
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              disabled={isPending || isDeleting}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open row actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                beginEditTask(task);
+                              }}
+                            >
+                              <Pencil className="size-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={isDeleting}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleDeleteTask(task.id);
+                              }}
+                            >
+                              <Trash2 className="size-4" />
+                              {isDeleting ? "Deleting..." : "Delete"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+    </div>
   );
 }

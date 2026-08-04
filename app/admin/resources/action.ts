@@ -112,6 +112,41 @@ export async function createSection(
   revalidateResourcePaths(resourceId);
 }
 
+export async function updateSection(
+  sectionId: number,
+  resourceId: number,
+  title: string,
+  description: string | null,
+  order: number | null,
+) {
+  const supabase = await getAuthenticatedSupabase();
+
+  // The section type stays untouched: resources always use the default "group"
+  // type set at creation and the editor never exposes it.
+  const { error } = await supabase
+    .from("section")
+    .update({ title, description, order })
+    .eq("id", sectionId);
+
+  if (error) {
+    throw new Error(`Error updating section: ${error.message}`);
+  }
+
+  revalidateResourcePaths(resourceId);
+}
+
+export async function deleteSection(sectionId: number, resourceId: number) {
+  const supabase = await getAuthenticatedSupabase();
+
+  const { error } = await supabase.from("section").delete().eq("id", sectionId);
+
+  if (error) {
+    throw new Error(`Error deleting section: ${error.message}`);
+  }
+
+  revalidateResourcePaths(resourceId);
+}
+
 export async function createTask(
   resourceId: number,
   sectionId: number,
@@ -134,6 +169,41 @@ export async function createTask(
 
   if (error) {
     throw new Error(`Error creating task: ${error.message}`);
+  }
+
+  revalidateResourcePaths(resourceId);
+}
+
+export async function updateTask(
+  taskId: number,
+  resourceId: number,
+  sectionId: number,
+  title: string,
+  description: string | null,
+  link: string | null,
+  order: number | null,
+) {
+  const supabase = await getAuthenticatedSupabase();
+
+  const { error } = await supabase
+    .from("task")
+    .update({ section_id: sectionId, title, description, link, order })
+    .eq("id", taskId);
+
+  if (error) {
+    throw new Error(`Error updating task: ${error.message}`);
+  }
+
+  revalidateResourcePaths(resourceId);
+}
+
+export async function deleteTask(taskId: number, resourceId: number) {
+  const supabase = await getAuthenticatedSupabase();
+
+  const { error } = await supabase.from("task").delete().eq("id", taskId);
+
+  if (error) {
+    throw new Error(`Error deleting task: ${error.message}`);
   }
 
   revalidateResourcePaths(resourceId);
