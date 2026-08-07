@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
 
 type Exam = {
   id: number;
@@ -43,7 +44,6 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [actionError, setActionError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -64,7 +64,6 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
   };
 
   const startEditing = (exam: Exam) => {
-    setActionError(null);
     setEditingId(exam.id);
     setEditTitle(exam.title);
     setEditStart(exam.exam_start);
@@ -80,10 +79,9 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
   
   const handleUpdateExam = () => {
     if (!editingId) return;
-    setActionError(null);
   
     if (!editTitle.trim() || !editStart || !editEnd) {
-      setActionError("Title and date are required.");
+      toast.error("Title and date are required.");
       return;
     }
   
@@ -91,9 +89,10 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
       try {
         await updateExam(editingId, editTitle.trim(), editStart, editEnd);
         cancelEditing();
+        toast.success("Exam updated successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to update exam.",
         );
       }
@@ -102,10 +101,9 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
 
   const handleCreateExam = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setActionError(null);
 
     if (!createTitle.trim() || !createStart || !createEnd) {
-      setActionError("Title and date are required.");
+      toast.error("Title and date are required.");
       return;
     }
 
@@ -113,9 +111,10 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
       try {
         await createExam(createTitle.trim(), createStart, createEnd);
         resetCreateForm();
+        toast.success("Exam created successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to create exam.",
         );
       }
@@ -123,15 +122,15 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
   };
 
   const handleDeleteExam = (examId: number) => {
-    setActionError(null);
     setDeletingId(examId);
 
     startTransition(async () => {
       try {
         await deleteExam(examId);
+        toast.success("Exam deleted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to delete exam.",
         );
       } finally {
@@ -142,15 +141,6 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
 
   return (
     <div className="space-y-4">
-      {actionError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {actionError}
-        </div>
-      )}
-
       {showCreateForm ? (
         <Card className="rounded-none">
           <CardHeader>
@@ -216,7 +206,6 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
         <Button
           variant="outline"
           onClick={() => {
-            setActionError(null);
             setShowCreateForm(true);
           }}
         >
