@@ -33,7 +33,28 @@ export default async function RootLayout({
             {children}
           </div>
         </div>
-        <Toaster position="top-center" richColors />
+        <Toaster 
+          position="top-center" 
+          richColors
+          closeButton
+          style={
+            {
+              "--width": "600px",
+            } as React.CSSProperties
+          }
+          toastOptions={{
+            classNames: {
+              error:
+                "!bg-red-100/90 !text-red-800 !border-red-800",
+              success:
+                "!bg-green-100/90 !text-green-800 !border-green-800",
+              warning:
+                "!bg-orange-100/90 !text-orange-800 !border-orange-800",
+              content: 
+                "!flex-1 !text-center !text-base",
+            },
+          }} 
+        />
       </body>
     </html>
   );
