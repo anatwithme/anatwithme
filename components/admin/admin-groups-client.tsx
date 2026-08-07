@@ -5,7 +5,6 @@ import {
   ChevronUp,
   ChevronsDownUp,
   ChevronsUpDown,
-  CircleAlert,
   CircleCheck,
   MoreHorizontal,
   Pencil,
@@ -66,6 +65,7 @@ import {
 } from "@/lib/group-management";
 import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type GroupMember = {
   user_id: string;
@@ -312,8 +312,6 @@ export default function AdminGroupsClient({
   const router = useRouter();
 
   const [loadingMode, setLoadingMode] = useState<MatchingMode | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<MatchingResult | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [showFlagged, setShowFlagged] = useState(false);
@@ -355,8 +353,6 @@ export default function AdminGroupsClient({
   const [availabilityStudent, setAvailabilityStudent] = useState<UngroupedStudent | null>(null);
 
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearResultTimer = useCallback(() => {
     if (resultTimerRef.current) {
@@ -365,36 +361,11 @@ export default function AdminGroupsClient({
     }
   }, []);
 
-  const clearErrorTimer = useCallback(() => {
-    if (errorTimerRef.current) {
-      clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = null;
-    }
-  }, []);
-
-  const clearSuccessTimer = useCallback(() => {
-    if (successTimerRef.current) {
-      clearTimeout(successTimerRef.current);
-      successTimerRef.current = null;
-    }
-  }, []);
-
-  const pushSuccessMessage = useCallback(
-    (message: string) => {
-      setSuccessMessage(message);
-      clearSuccessTimer();
-      successTimerRef.current = setTimeout(() => setSuccessMessage(null), 6000);
-    },
-    [clearSuccessTimer],
-  );
-
   useEffect(() => {
     return () => {
       clearResultTimer();
-      clearErrorTimer();
-      clearSuccessTimer();
     };
-  }, [clearErrorTimer, clearResultTimer, clearSuccessTimer]);
+  }, [clearResultTimer]);
 
   const hasGroups = groups.length > 0;
   const loading = loadingMode !== null;
@@ -470,7 +441,6 @@ export default function AdminGroupsClient({
   }
 
   function openCreateGroupDialog() {
-    setError(null);
     setCreateWarnings([]);
     setCreateForm(getDefaultCreateFormState());
     setCreateGroupOpen(true);
@@ -483,7 +453,6 @@ export default function AdminGroupsClient({
   }
 
   function openAssignDialog(student: UngroupedStudent) {
-    setError(null);
     setAssignWarnings([]);
     setAssigningStudent(student);
     setAssignGroupId(groups[0]?.id ?? "");
@@ -497,7 +466,6 @@ export default function AdminGroupsClient({
   }
 
   function openEditGroupDialog(group: Group) {
-    setError(null);
     setEditWarnings([]);
     setEditingGroup(group);
     setEditForm({
@@ -516,7 +484,6 @@ export default function AdminGroupsClient({
   }
 
   function openDeleteDialog(group: Group) {
-    setError(null);
     setPendingDeleteGroup(group);
   }
 
@@ -524,7 +491,6 @@ export default function AdminGroupsClient({
     mode: MatchingMode,
     overrideRoomCapacity = false,
   ) {
-    setError(null);
     setLastResult(null);
     setShowResult(false);
     setShowFlagged(false);
@@ -535,14 +501,12 @@ export default function AdminGroupsClient({
     }
     setLoadingMode(mode);
     clearResultTimer();
-    clearErrorTimer();
 
     try {
       const result = await runMatchingAction(mode, { overrideRoomCapacity });
 
       if ("error" in result) {
-        setError(result.error ?? "Something went wrong");
-        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        toast.error(result.error ?? "Something went wrong");
         return;
       }
 
@@ -565,9 +529,8 @@ export default function AdminGroupsClient({
 
       router.refresh();
     } catch (err) {
-      setError("Something went wrong. Check the terminal for details.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
       console.error("runMatchingAction error:", err);
+      toast.error("Something went wrong. Check the terminal for details.");
     } finally {
       setLoadingMode(null);
     }
@@ -575,25 +538,20 @@ export default function AdminGroupsClient({
 
   async function handleDeleteGroup(groupId: string) {
     setDeletingGroupId(groupId);
-    setError(null);
-    setSuccessMessage(null);
-    clearErrorTimer();
-    clearSuccessTimer();
 
     try {
       const result = await deleteGroup(groupId);
 
       if ("error" in result) {
-        setError(result.error ?? "Failed to delete group");
-        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        toast.error(result.error ?? "Failed to delete group");
         return;
       }
 
-      pushSuccessMessage("Group deleted.");
+      toast.success("Group deleted successfully.");
       router.refresh();
-    } catch {
-      setError("Failed to delete group. Check the terminal for details.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+    } catch (err) {
+      console.error("deleteGroup error:", err);
+      toast.error("Failed to delete group. Check the terminal for details.");
     } finally {
       setDeletingGroupId(null);
     }
@@ -601,10 +559,6 @@ export default function AdminGroupsClient({
 
   async function handleCreateGroup(overrideWarnings = false) {
     setCreatingGroup(true);
-    setError(null);
-    setSuccessMessage(null);
-    clearErrorTimer();
-    clearSuccessTimer();
 
     try {
       const result = await createManualGroup({
@@ -618,8 +572,7 @@ export default function AdminGroupsClient({
       });
 
       if ("error" in result) {
-        setError(result.error ?? "Failed to create group");
-        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        toast.error(result.error ?? "Failed to create group");
         return;
       }
 
@@ -629,7 +582,7 @@ export default function AdminGroupsClient({
       }
 
       closeCreateGroupDialog();
-      pushSuccessMessage(
+      toast.success(
         result.assignedCount && result.assignedCount > 0
           ? `Group created and ${result.assignedCount} student${result.assignedCount === 1 ? "" : "s"} assigned.`
           : "Empty group created.",
@@ -637,8 +590,7 @@ export default function AdminGroupsClient({
       router.refresh();
     } catch (createError) {
       console.error("createManualGroup error:", createError);
-      setError("Failed to create group. Check the terminal for details.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      toast.error("Failed to create group. Check the terminal for details.");
     } finally {
       setCreatingGroup(false);
     }
@@ -646,16 +598,11 @@ export default function AdminGroupsClient({
 
   async function handleUpdateGroup(overrideWarnings = false) {
     if (!editingGroup) {
-      setError("Choose a group to edit first.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      toast.error("Choose a group to edit first.");
       return;
     }
 
     setUpdatingGroup(true);
-    setError(null);
-    setSuccessMessage(null);
-    clearErrorTimer();
-    clearSuccessTimer();
 
     try {
       const result = await updateManualGroup(editingGroup.id, {
@@ -670,8 +617,7 @@ export default function AdminGroupsClient({
       });
 
       if ("error" in result) {
-        setError(result.error ?? "Failed to update group");
-        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        toast.error(result.error ?? "Failed to update group");
         return;
       }
 
@@ -681,7 +627,7 @@ export default function AdminGroupsClient({
       }
 
       closeEditGroupDialog();
-      pushSuccessMessage(
+      toast.success(
         result.assignedCount && result.assignedCount > 0
           ? `Group updated and ${result.assignedCount} new student${result.assignedCount === 1 ? "" : "s"} assigned.`
           : "Group updated.",
@@ -689,8 +635,7 @@ export default function AdminGroupsClient({
       router.refresh();
     } catch (updateError) {
       console.error("updateManualGroup error:", updateError);
-      setError("Failed to update group. Check the terminal for details.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      toast.error("Failed to update group. Check the terminal for details.");
     } finally {
       setUpdatingGroup(false);
     }
@@ -698,16 +643,11 @@ export default function AdminGroupsClient({
 
   async function handleAssignStudent(overrideWarnings = false) {
     if (!assigningStudent || !assignGroupId) {
-      setError("Choose a student and target group first.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      toast.error("Choose a student and target group first.");
       return;
     }
 
     setAssigningToGroup(true);
-    setError(null);
-    setSuccessMessage(null);
-    clearErrorTimer();
-    clearSuccessTimer();
 
     try {
       const result = await assignStudentToGroup({
@@ -717,8 +657,7 @@ export default function AdminGroupsClient({
       });
 
       if ("error" in result) {
-        setError(result.error ?? "Failed to assign student");
-        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        toast.error(result.error ?? "Failed to assign student");
         return;
       }
 
@@ -729,12 +668,11 @@ export default function AdminGroupsClient({
 
       const studentName = assigningStudent.full_name ?? "Student";
       closeAssignDialog();
-      pushSuccessMessage(`${studentName} assigned to group.`);
+      toast.success(`${studentName} assigned to group.`);
       router.refresh();
     } catch (assignError) {
       console.error("assignStudentToGroup error:", assignError);
-      setError("Failed to assign student. Check the terminal for details.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      toast.error("Failed to assign student. Check the terminal for details.");
     } finally {
       setAssigningToGroup(false);
     }
@@ -745,10 +683,6 @@ export default function AdminGroupsClient({
     const profile = getMemberProfile(member);
 
     setRemovingMemberKey(memberKey);
-    setError(null);
-    setSuccessMessage(null);
-    clearErrorTimer();
-    clearSuccessTimer();
 
     try {
       const result = await removeStudentFromGroup({
@@ -757,19 +691,17 @@ export default function AdminGroupsClient({
       });
 
       if ("error" in result) {
-        setError(result.error ?? "Failed to remove student from group");
-        errorTimerRef.current = setTimeout(() => setError(null), 8000);
+        toast.error(result.error ?? "Failed to remove student from group");
         return;
       }
 
-      pushSuccessMessage(
+      toast.success(
         `${profile?.full_name ?? "Student"} removed from the group.`,
       );
       router.refresh();
     } catch (removeError) {
       console.error("removeStudentFromGroup error:", removeError);
-      setError("Failed to remove student. Check the terminal for details.");
-      errorTimerRef.current = setTimeout(() => setError(null), 8000);
+      toast.error("Failed to remove student. Check the terminal for details.");
     } finally {
       setRemovingMemberKey(null);
     }
@@ -1471,48 +1403,6 @@ export default function AdminGroupsClient({
           )}
         </div>
       </div>
-
-      {error && (
-        <div
-          role="alert"
-          className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive animate-in fade-in slide-in-from-top-1 duration-200"
-        >
-          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <p className="flex-1">{error}</p>
-          <button
-            type="button"
-            className="shrink-0 rounded-sm p-0.5 opacity-70 hover:opacity-100 transition-opacity"
-            onClick={() => {
-              setError(null);
-              clearErrorTimer();
-            }}
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Dismiss</span>
-          </button>
-        </div>
-      )}
-
-      {successMessage && (
-        <div
-          role="status"
-          className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 animate-in fade-in slide-in-from-top-1 duration-200 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-        >
-          <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <p className="flex-1">{successMessage}</p>
-          <button
-            type="button"
-            className="shrink-0 rounded-sm p-0.5 opacity-70 transition-opacity hover:opacity-100"
-            onClick={() => {
-              setSuccessMessage(null);
-              clearSuccessTimer();
-            }}
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Dismiss</span>
-          </button>
-        </div>
-      )}
 
       {lastResult && showResult && (
         <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200 animate-in fade-in slide-in-from-top-1 duration-200">
