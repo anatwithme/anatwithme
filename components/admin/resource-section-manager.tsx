@@ -42,6 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Task = {
   id: number;
@@ -86,8 +87,6 @@ function sortByOrder<T extends { order: number | null }>(items: T[]) {
 export function SectionManager({ resourceId, sections: sectionsProp }: SectionManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const [showCreateSectionForm, setShowCreateSectionForm] = useState(false);
   const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
@@ -151,7 +150,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
   };
 
   const beginEditSection = (section: Section) => {
-    setActionError(null);
     setEditingSectionId(section.id);
     setEditSectionTitle(section.title);
     setEditSectionDescription(section.description ?? "");
@@ -166,7 +164,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
   };
 
   const beginEditTask = (task: Task) => {
-    setActionError(null);
     setEditingTaskId(task.id);
     setEditTaskSectionId(String(task.section_id));
     setEditTaskTitle(task.title);
@@ -186,7 +183,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
 
   const handleCreateSection = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setActionError(null);
 
     startTransition(async () => {
       try {
@@ -200,9 +196,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
           parseOrder(createSectionOrder),
         );
         resetCreateSectionForm();
+        toast.success("Section created successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to create section.",
         );
       }
@@ -210,8 +207,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
   };
 
   const handleUpdateSection = (sectionId: number) => {
-    setActionError(null);
-
     startTransition(async () => {
       try {
         await updateSection(
@@ -222,9 +217,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
           parseOrder(editSectionOrder),
         );
         cancelEditSection();
+        toast.success("Section updated successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to update section.",
         );
       }
@@ -232,7 +228,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
   };
 
   const handleDeleteSection = (sectionId: number) => {
-    setActionError(null);
     setDeletingSectionId(sectionId);
 
     startTransition(async () => {
@@ -250,9 +245,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
             cancelEditTask();
           }
         }
+        toast.success("Section deleted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to delete section.",
         );
       } finally {
@@ -263,11 +259,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
 
   const handleCreateTask = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setActionError(null);
 
     const parsedSectionId = Number.parseInt(createTaskSectionId, 10);
     if (!Number.isInteger(parsedSectionId) || parsedSectionId <= 0) {
-      setActionError("Select a section before creating a task.");
+      toast.error("Select a section before creating a task.");
       return;
     }
 
@@ -282,9 +277,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
           parseOrder(createTaskOrder),
         );
         resetCreateTaskForm();
+        toast.success("Task created successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to create task.",
         );
       }
@@ -292,11 +288,9 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
   };
 
   const handleUpdateTask = (taskId: number) => {
-    setActionError(null);
-
     const parsedSectionId = Number.parseInt(editTaskSectionId, 10);
     if (!Number.isInteger(parsedSectionId) || parsedSectionId <= 0) {
-      setActionError("Select a section before saving a task.");
+      toast.error("Select a section before saving a task.");
       return;
     }
 
@@ -312,9 +306,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
           parseOrder(editTaskOrder),
         );
         cancelEditTask();
+        toast.success("Task updated successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to update task.",
         );
       }
@@ -322,7 +317,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
   };
 
   const handleDeleteTask = (taskId: number) => {
-    setActionError(null);
     setDeletingTaskId(taskId);
 
     startTransition(async () => {
@@ -331,9 +325,10 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
         if (editingTaskId === taskId) {
           cancelEditTask();
         }
+        toast.success("Task deleted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to delete task.",
         );
       } finally {
@@ -344,15 +339,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
 
   return (
     <div className="space-y-8">
-      {actionError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {actionError}
-        </div>
-      )}
-
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -365,7 +351,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
             <Button
               variant="outline"
               onClick={() => {
-                setActionError(null);
                 setShowCreateSectionForm(true);
               }}
             >
@@ -628,7 +613,6 @@ export function SectionManager({ resourceId, sections: sectionsProp }: SectionMa
               variant="outline"
               disabled={sections.length === 0}
               onClick={() => {
-                setActionError(null);
                 setCreateTaskSectionId(
                   sections[0] ? String(sections[0].id) : "",
                 );
