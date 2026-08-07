@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
 import { removeStudent, promoteStudent } from "@/lib/actions/admin/student-actions";
 import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 
@@ -143,7 +144,6 @@ export function StudentRosterTable({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
   const [pendingRemovalStudent, setPendingRemovalStudent] = useState<Student | null>(null);
   const [pendingPromotionStudent, setPendingPromotionStudent] = useState<Student | null>(null);
   const [availabilityStudent, setAvailabilityStudent] = useState<Student | null>(null);
@@ -151,16 +151,16 @@ export function StudentRosterTable({
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
 
   const handleRemoveStudent = (studentId: string) => {
-    setActionError(null);
     setActiveStudentId(studentId);
 
     startTransition(async () => {
       try {
         await removeStudent(studentId);
         setPendingRemovalStudent(null);
+        toast.success("Student removed successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to remove student.",
         );
       } finally {
@@ -170,16 +170,16 @@ export function StudentRosterTable({
   };
 
   const handlePromoteStudent = (studentId: string) => {
-    setActionError(null);
     setActiveStudentId(studentId);
 
     startTransition(async () => {
       try {
         await promoteStudent(studentId);
         setPendingPromotionStudent(null);
+        toast.success("Student promoted to Admin successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to promote student.",
         );
       } finally {
@@ -266,16 +266,6 @@ export function StudentRosterTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {actionError ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="p-3 text-center text-destructive"
-                >
-                  {actionError}
-                </TableCell>
-              </TableRow>
-            ) : null}
             {students.length === 0 ? (
               <TableRow>
                 <TableCell
