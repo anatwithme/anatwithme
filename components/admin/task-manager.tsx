@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Task = {
   id: number;
@@ -92,8 +93,6 @@ function sortByOrder<T extends { order: number | null }>(items: T[]) {
 export function SectionManager({ agenda }: { agenda: Agenda }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const [showCreateSectionForm, setShowCreateSectionForm] = useState(false);
   const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
@@ -161,7 +160,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
   };
 
   const beginEditSection = (section: Section) => {
-    setActionError(null);
     setEditingSectionId(section.id);
     setEditSectionTitle(section.title);
     setEditSectionDescription(section.description ?? "");
@@ -178,7 +176,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
   };
 
   const beginEditTask = (task: Task) => {
-    setActionError(null);
     setEditingTaskId(task.id);
     setEditTaskSectionId(String(task.section_id));
     setEditTaskTitle(task.title);
@@ -198,7 +195,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
 
   const handleCreateSection = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setActionError(null);
 
     startTransition(async () => {
       try {
@@ -210,9 +206,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
           parseOrder(createSectionOrder),
         );
         resetCreateSectionForm();
+        toast.success("Section created successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to create section.",
         );
       }
@@ -220,8 +217,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
   };
 
   const handleUpdateSection = (sectionId: number) => {
-    setActionError(null);
-
     startTransition(async () => {
       try {
         await updateSection(
@@ -233,9 +228,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
           parseOrder(editSectionOrder),
         );
         cancelEditSection();
+        toast.success("Section updated successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to update section.",
         );
       }
@@ -243,7 +239,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
   };
 
   const handleDeleteSection = (sectionId: number) => {
-    setActionError(null);
     setDeletingSectionId(sectionId);
 
     startTransition(async () => {
@@ -261,9 +256,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
             cancelEditTask();
           }
         }
+        toast.success("Section deleted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to delete section.",
         );
       } finally {
@@ -274,11 +270,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
 
   const handleCreateTask = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setActionError(null);
 
     const parsedSectionId = Number.parseInt(createTaskSectionId, 10);
     if (!Number.isInteger(parsedSectionId) || parsedSectionId <= 0) {
-      setActionError("Select a section before creating a task.");
+      toast.warning("Select a section before creating a task.");
       return;
     }
 
@@ -293,9 +288,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
           parseOrder(createTaskOrder),
         );
         resetCreateTaskForm();
+        toast.success("Task created successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to create task.",
         );
       }
@@ -303,11 +299,9 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
   };
 
   const handleUpdateTask = (taskId: number) => {
-    setActionError(null);
-
     const parsedSectionId = Number.parseInt(editTaskSectionId, 10);
     if (!Number.isInteger(parsedSectionId) || parsedSectionId <= 0) {
-      setActionError("Select a section before saving a task.");
+      toast.warning("Select a section before saving a task.");
       return;
     }
 
@@ -323,9 +317,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
           parseOrder(editTaskOrder),
         );
         cancelEditTask();
+        toast.success("Task updated successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to update task.",
         );
       }
@@ -333,7 +328,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
   };
 
   const handleDeleteTask = (taskId: number) => {
-    setActionError(null);
     setDeletingTaskId(taskId);
 
     startTransition(async () => {
@@ -342,9 +336,10 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
         if (editingTaskId === taskId) {
           cancelEditTask();
         }
+        toast.success("Task deleted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to delete task.",
         );
       } finally {
@@ -379,15 +374,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
         )}
       </div>
 
-      {actionError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {actionError}
-        </div>
-      )}
-
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -400,7 +386,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
             <Button
               variant="outline"
               onClick={() => {
-                setActionError(null);
                 setShowCreateSectionForm(true);
               }}
             >
@@ -703,7 +688,6 @@ export function SectionManager({ agenda }: { agenda: Agenda }) {
               variant="outline"
               disabled={sections.length === 0}
               onClick={() => {
-                setActionError(null);
                 setCreateTaskSectionId(
                   sections[0] ? String(sections[0].id) : "",
                 );
