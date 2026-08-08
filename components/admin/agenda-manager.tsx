@@ -61,6 +61,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import Link from "next/link";
 
 type Task = {
@@ -142,7 +143,6 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [actionError, setActionError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -185,7 +185,6 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   };
 
   const beginEdit = (agenda: Agenda) => {
-    setActionError(null);
     setEditingAgendaId(agenda.id);
     setEditTitle(agenda.title);
     setEditDescription(agenda.description ?? "");
@@ -207,15 +206,14 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
 
   const handleCreateAgenda = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setActionError(null);
 
     const parsedWeek = Number.parseInt(createWeek, 10);
     if (!Number.isInteger(parsedWeek) || parsedWeek <= 0) {
-      setActionError("Week must be a positive integer.");
+      toast.error("Week must be a positive integer.");
       return;
     }
     if (!createStartDate || !createEndDate) {
-      setActionError("Start date and end date are required.");
+      toast.error("Start date and end date are required.");
       return;
     }
 
@@ -225,7 +223,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       parsedUnitValue < 1 ||
       parsedUnitValue > 5
     ) {
-      setActionError("Unit value must be an integer between 1 and 5.");
+      toast.error("Unit value must be an integer between 1 and 5.");
       return;
     }
 
@@ -240,9 +238,10 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           parsedUnitValue,
         );
         resetCreateForm();
+        toast.success("Agenda created successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to create agenda.",
         );
       }
@@ -250,15 +249,14 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   };
 
   const handleUpdateAgenda = (agendaId: number) => {
-    setActionError(null);
 
     const parsedWeek = Number.parseInt(editWeek, 10);
     if (!Number.isInteger(parsedWeek) || parsedWeek <= 0) {
-      setActionError("Week must be a positive integer.");
+      toast.error("Week must be a positive integer.");
       return;
     }
     if (!editStartDate || !editEndDate) {
-      setActionError("Start date and end date are required.");
+      toast.error("Start date and end date are required.");
       return;
     }
 
@@ -268,7 +266,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
       parsedUnitValue < 1 ||
       parsedUnitValue > 5
     ) {
-      setActionError("Unit value must be an integer between 1 and 5.");
+      toast.error("Unit value must be an integer between 1 and 5.");
       return;
     }
 
@@ -284,9 +282,10 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
           parsedUnitValue,
         );
         cancelEdit();
+        toast.success("Agenda updated successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to update agenda.",
         );
       }
@@ -294,16 +293,16 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   };
 
   const handleDeleteAgenda = (agendaId: number) => {
-    setActionError(null);
     setDeletingId(agendaId);
 
     startTransition(async () => {
       try {
         await deleteAgenda(agendaId);
         if (editingAgendaId === agendaId) cancelEdit();
+        toast.success("Agenda deleted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to delete agenda.",
         );
       } finally {
@@ -313,15 +312,15 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   };
 
   const handleCopyAgenda = (agendaId: number) => {
-    setActionError(null);
     setCopyingId(agendaId);
 
     startTransition(async () => {
       try {
         await copyAgenda(agendaId);
+        toast.success("Agenda copied successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to copy agenda.",
         );
       } finally {
@@ -360,7 +359,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
         );
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to reorder agendas.",
         );
       }
@@ -368,19 +367,18 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
   };
 
   const handleApplySemesterDates = () => {
-    setActionError(null);
-
     if (!semesterStartDate || !semesterEndDate) {
-      setActionError("Semester start and end dates are both required.");
+      toast.error("Semester start and end dates are both required.");
       return;
     }
 
     startTransition(async () => {
       try {
         await applyDatesToActiveAgendas(semesterStartDate, semesterEndDate);
+        toast.success("Semester dates applied successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to apply semester dates.",
         );
       }
@@ -403,15 +401,6 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
 
   return (
     <div className="space-y-4">
-      {actionError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {actionError}
-        </div>
-      )}
-
       <Card className="rounded-none">
         <CardHeader>
           <CardTitle>Automatic Date Adjuster</CardTitle>
@@ -567,7 +556,6 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
         <Button
           variant="outline"
           onClick={() => {
-            setActionError(null);
             setShowCreateForm(true);
           }}
         >
@@ -936,11 +924,11 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                                       try {
                                         await toggleAgenda(agenda.id, enabled);
                                       } catch (error) {
-                                        setActionError(
+                                        toast.error(
                                           error instanceof Error
                                             ? error.message
                                             : "Failed to update agenda status.",
-                                        )
+                                        );
                                       }
                                     })
                                   }}

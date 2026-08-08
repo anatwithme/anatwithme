@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
 import { removeAdmin } from "@/lib/actions/admin/student-actions";
 
 type Admin = {
@@ -54,23 +55,22 @@ function getRoleFormat(role: string) {
 export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner: boolean; }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
   const [pendingRemovalAdmin, setPendingRemovalAdmin] = useState<Admin | null>(null);
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
 
   const isRemovingSelected = removingAdminId === pendingRemovalAdmin?.user_id;
 
   const handleRemoveAdmin = (adminId: string) => {
-    setActionError(null);
     setRemovingAdminId(adminId);
 
     startTransition(async () => {
       try {
         await removeAdmin(adminId);
         setPendingRemovalAdmin(null);
+        toast.success("Admin demoted successfully.");
         router.refresh();
       } catch (error) {
-        setActionError(
+        toast.error(
           error instanceof Error ? error.message : "Failed to remove admin.",
         );
       } finally {
@@ -119,17 +119,6 @@ export function AdminRosterTable({ admins, isOwner }: { admins: Admin[]; isOwner
           </TableHeader>
 
           <TableBody>
-            {actionError ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="p-3 text-center text-destructive"
-                >
-                  {actionError}
-                </TableCell>
-              </TableRow>
-            ) : null}
-
             {admins.length === 0 ? (
               <TableRow>
                 <TableCell

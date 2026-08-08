@@ -2,17 +2,16 @@
 
 import { useState } from "react";
 import { CalendarPlus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { generateGroupCalendarEvent } from "@/app/student/(protected)/group/action";
 
 export default function GroupCalendarDownload() {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleDownload() {
     setIsDownloading(true);
-    setError(null);
 
     try {
       const result = await generateGroupCalendarEvent();
@@ -32,8 +31,12 @@ export default function GroupCalendarDownload() {
       anchor.remove();
 
       URL.revokeObjectURL(url);
+
+      toast.success("Calendar download successful.")
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to create the calendar event.");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to create the calendar event."
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -51,12 +54,6 @@ export default function GroupCalendarDownload() {
         <CalendarPlus className="mr-2 h-4 w-4" />
         {isDownloading ? "Preparing..." : "Add to Calendar"}
       </Button>
-
-      {error ? (
-        <p className="mt-2 text-sm text-destructive">
-            {error}
-        </p>
-      ) : null}
     </div>
   );
 }

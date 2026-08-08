@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const DAY_LABELS = [
   { value: 0, short: "Mon", long: "Monday" },
@@ -79,8 +80,6 @@ export function RoomManager({ rooms }: { rooms: Room[] }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<RoomFormState>(() => getDefaultFormState());
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<number | null>(null);
 
   const isEditing = editingRoomId !== null;
@@ -113,8 +112,6 @@ export function RoomManager({ rooms }: { rooms: Room[] }) {
   }
 
   function beginEdit(room: Room) {
-    setError(null);
-    setSuccessMessage(null);
     setEditingRoomId(room.id);
     setForm({
       building: room.building,
@@ -126,8 +123,6 @@ export function RoomManager({ rooms }: { rooms: Room[] }) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setSuccessMessage(null);
 
     startTransition(async () => {
       const payload = {
@@ -143,11 +138,11 @@ export function RoomManager({ rooms }: { rooms: Room[] }) {
           : await updateRoom(editingRoomId, payload);
 
       if ("error" in result) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
-      setSuccessMessage(
+      toast.success(
         editingRoomId === null ? "Room created." : "Room updated.",
       );
       resetForm();
@@ -165,18 +160,16 @@ export function RoomManager({ rooms }: { rooms: Room[] }) {
     }
 
     setDeletingRoomId(roomId);
-    setError(null);
-    setSuccessMessage(null);
 
     startTransition(async () => {
       const result = await deleteRoom(roomId);
       if ("error" in result) {
-        setError(result.error);
+        toast.error(result.error);
         setDeletingRoomId(null);
         return;
       }
 
-      setSuccessMessage("Room deleted.");
+      toast.success("Room deleted.");
       if (editingRoomId === roomId) {
         resetForm();
       }
@@ -187,24 +180,6 @@ export function RoomManager({ rooms }: { rooms: Room[] }) {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {error}
-        </div>
-      )}
-
-      {successMessage && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-        >
-          {successMessage}
-        </div>
-      )}
-
       <Card className="rounded-none">
         <CardHeader>
           <CardTitle>{isEditing ? "Edit room" : "Add room"}</CardTitle>

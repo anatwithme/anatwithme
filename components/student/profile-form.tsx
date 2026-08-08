@@ -4,13 +4,10 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
-  CircleAlert,
-  CircleCheck,
   Info,
   TriangleAlert,
   Upload,
   Users,
-  X,
 } from "lucide-react";
 
 import { updateStudentProfile } from "@/app/student/profile/actions";
@@ -25,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { group } from "console";
+import { toast } from "sonner";
 import Link from "next/link";
 
 type StudyMode = "group" | "independent";
@@ -43,8 +40,6 @@ type Profile = {
   group_study_agreement_accepted: boolean | null;
   hasAssignedGroup: boolean;
 };
-
-type Toast = { type: "success" | "error"; text: string } | null;
 
 const BIO_MAX = 500;
 const AVATAR_MAX_BYTES = 3 * 1024 * 1024;
@@ -108,7 +103,6 @@ export default function ProfileForm({
     formatPhoneNumber(profile.phone ?? ""),
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [toast, setToast] = useState<Toast>(null);
 
   const isIndependent = studyMode === "independent";
   const isLockedToGroup = profile.hasAssignedGroup;
@@ -124,41 +118,28 @@ export default function ProfileForm({
     };
   }, [previewUrl]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setToast(null);
 
     const cleanPhone = phoneDisplay.replace(/\D/g, "");
 
     if (!fullName.trim()) {
-      setToast({ type: "error", text: "Name is required." });
+      toast.error("Name is required.");
       return;
     }
 
     if (!preference) {
-      setToast({ type: "error", text: "Please select a study preference." });
+      toast.error("Please select a study preference.");
       return;
     }
 
     if (cleanPhone && cleanPhone.length !== 10) {
-      setToast({
-        type: "error",
-        text: "Phone number must be exactly 10 digits.",
-      });
+      toast.error("Phone number must be exactly 10 digits.");
       return;
     }
 
     if (studyMode === "group" && !groupStudyAgreementAccepted) {
-      setToast({
-        type: "error",
-        text: "You must accept the group study agreement to join a group.",
-      });
+      toast.error("You must accept the group study agreement to join a group.");
       return;
     }
 
@@ -176,14 +157,14 @@ export default function ProfileForm({
     startTransition(async () => {
       const res = await updateStudentProfile(safe);
       if (res.ok) {
-        setToast({ type: "success", text: "Profile updated successfully." });
+        toast.success("Profile updated successfully.");
         setSelectedFile(null);
         setPhoneDisplay(formatPhoneNumber(cleanPhone));
         setStudyMode(res.updated.study_mode);
         setPreference(res.updated.preference);
-        router.push(res.redirectTo);
+        router.refresh();
       } else {
-        setToast({ type: "error", text: res.error ?? "Save failed." });
+        toast.error(res.error ?? "Save failed.");
       }
     });
   }
@@ -197,36 +178,6 @@ export default function ProfileForm({
       {showCompletionNotice ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50/70 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           Please complete your profile before using the rest of the site.
-        </div>
-      ) : null}
-
-      {toast ? (
-        <div
-          role="status"
-          className={cn(
-            "flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm animate-in fade-in slide-in-from-top-1 duration-200",
-            toast.type === "success"
-              ? "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
-              : "border-destructive/50 bg-destructive/10 text-destructive",
-          )}
-        >
-          <div className="flex items-start gap-2">
-            {toast.type === "success" ? (
-              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            )}
-            <span>{toast.text}</span>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => setToast(null)}
-            aria-label="Dismiss message"
-          >
-            <X className="h-3 w-3" />
-          </Button>
         </div>
       ) : null}
 
@@ -267,17 +218,11 @@ export default function ProfileForm({
                     const file = e.target.files?.[0] ?? null;
                     if (!file) return;
                     if (!file.type.startsWith("image/")) {
-                      setToast({
-                        type: "error",
-                        text: "Please choose an image file.",
-                      });
+                      toast.error("Please choose an image file.");
                       return;
                     }
                     if (file.size > AVATAR_MAX_BYTES) {
-                      setToast({
-                        type: "error",
-                        text: "Image too large (max 3MB).",
-                      });
+                      toast.error("Image too large (max 3MB).");
                       return;
                     }
                     setSelectedFile(file);
