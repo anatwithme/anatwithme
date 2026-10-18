@@ -360,6 +360,7 @@ export default function StudentAgendaBoard({
                 <select
                   style={{ cursor: "pointer" }}
                   id="agenda-selector"
+                  aria-label="Select agenda"
                   value={selectedAgendaId}
                   onChange={(e) => changeAgenda(Number(e.target.value))}
                   className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-[#BB0000] focus:ring-2 focus:ring-[#BB0000]/10"
@@ -482,7 +483,7 @@ export default function StudentAgendaBoard({
                               {section.description || "No description"}
                             </p>
 
-                            <p className="mt-3 text-sm text-gray-400">
+                            <p className="mt-3 text-sm text-gray-600">
                               {completedCount}/{section.tasks.length} done
                             </p>
                           </div>
@@ -520,7 +521,7 @@ export default function StudentAgendaBoard({
                       {isExpanded && (
                         <div className="max-h-[620px] space-y-4 overflow-y-auto p-5">
                           {section.tasks.length === 0 ? (
-                            <p className="text-sm text-gray-400">No tasks yet.</p>
+                            <p className="text-sm text-gray-600">No tasks yet.</p>
                           ) : (
                             section.tasks.map((task) => {
                               const isChecked = completedSet.has(task.id);
@@ -534,6 +535,7 @@ export default function StudentAgendaBoard({
                                     <input
                                       style={{ cursor: "pointer" }}
                                       type="checkbox"
+                                      aria-label={`Mark ${task.title} as ${isChecked ? "incomplete" : "complete"}`}
                                       checked={isChecked}
                                       disabled={isPending}
                                       onChange={(e) =>
@@ -547,7 +549,7 @@ export default function StudentAgendaBoard({
                                         <p
                                           className={`text-lg font-medium ${
                                             isChecked
-                                              ? "text-gray-400 line-through"
+                                              ? "text-gray-600 line-through"
                                               : "text-gray-900"
                                           }`}
                                         >
