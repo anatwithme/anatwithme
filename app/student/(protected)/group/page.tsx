@@ -69,6 +69,22 @@ function formatTime(timeString: string) {
   return `${hour12}:${minStr} ${ampm}`;
 }
 
+function formatAssignmentDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function formatPhoneNumber(phone: string) {
   const digits = phone.replace(/\D/g, "");
 
@@ -320,6 +336,13 @@ export default async function GroupPage() {
                 value={`${members.length} student${members.length === 1 ? "" : "s"}`}
               />
             </div>
+            
+            {!isOnline && (
+              <AssignmentDateRange
+                start={undefined}
+                end={undefined}
+              />
+            )}
 
             <div className="mt-6 border-t pt-5">
               <div className="mb-3">
@@ -495,6 +518,33 @@ function StatBlock({
         <span>{label}</span>
       </div>
       <p className="mt-1.5 text-sm font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function AssignmentDateRange({
+  start,
+  end,
+}: {
+  start?: string | null;
+  end?: string | null;
+}) {
+  if (!start || !end) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border bg-muted/20 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">
+          Room assignment period
+        </h3>
+      </div>
+
+      <p className="mt-2 text-sm text-muted-foreground">
+        {formatAssignmentDate(start)} – {formatAssignmentDate(end)}
+      </p>
     </div>
   );
 }
