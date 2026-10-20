@@ -39,7 +39,7 @@ export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
         </Button>
       ) : null}
 
-      <div className="relative">
+      <nav className="relative" aria-label="Student navigation">
         <div className="hidden items-center gap-1 md:flex">
           {tabs.map(({ label, href, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + "/");
@@ -48,6 +48,7 @@ export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   isActive
@@ -64,7 +65,10 @@ export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
 
         <div className="md:hidden">
           <button
+            type="button"
             onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-controls="student-mobile-menu"
             className="flex items-center gap-2 rounded-md border px-3 py-2"
           >
             <Menu className="size-5" />
@@ -72,7 +76,7 @@ export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
           </button>
 
           {open && (
-            <div className="absolute z-50 mt-2 w-48 rounded-md border bg-background shadow-lg">
+            <div id="student-mobile-menu" className="absolute z-50 mt-2 w-48 rounded-md border bg-background shadow-lg">
               {isAdmin ? (
                 <Link
                   href="/admin"
@@ -92,6 +96,7 @@ export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
                     key={href}
                     href={href}
                     onClick={() => setOpen(false)}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 text-sm",
                       isActive
@@ -107,7 +112,7 @@ export function StudentNavbar({ isAdmin = false }: { isAdmin?: boolean }) {
             </div>
           )}
         </div>
-      </div>
+      </nav>
     </div>
   );
 }
