@@ -106,8 +106,6 @@ type Group = {
     | null;
   created_at: string;
   member_of: GroupMember[];
-  assignment_start?: string | null;
-  assignment_end?: string | null;
 };
 
 type FlaggedStudent = {
