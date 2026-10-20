@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 
+import { persistableAssignmentRange } from "@/lib/assignment-range";
+
 import {
   assignRoomsToGroups,
   DEFAULT_ROOM_GROUP_CAPACITY,
@@ -125,6 +127,18 @@ export async function createManualGroup(
     };
   }
 
+  const assignmentRange = persistableAssignmentRange({
+    preference: validation.value.preference,
+    assignmentStart: input.assignmentStart,
+    assignmentEnd: input.assignmentEnd,
+  });
+
+  if (!assignmentRange.ok) {
+    return {
+      error: assignmentRange.error,
+    };
+  }
+
   const selectedStudentIds = [...uniqueStudentIds];
 
   const studentResult = await loadStudentContexts(
@@ -217,7 +231,10 @@ export async function createManualGroup(
     }
 
     const existingUsageResult =
-      await loadExistingRoomUsage(supabase);
+      await loadExistingRoomUsage(supabase, undefined, {
+        assignmentStart: assignmentRange.assignmentStart,
+        assignmentEnd: assignmentRange.assignmentEnd,
+      });
 
     if ("error" in existingUsageResult) {
       return existingUsageResult;
@@ -259,6 +276,8 @@ export async function createManualGroup(
           validation.value.meetEndTime,
         room_id: manualRoomId,
         room_overbooked: manualRoomOverbooked,
+        assignment_start: assignmentRange.assignmentStart,
+        assignment_end: assignmentRange.assignmentEnd,
       })
       .select("id")
       .single();
@@ -331,7 +350,7 @@ export async function updateManualGroup(
     error: groupError,
   } = await supabase
     .from("group")
-    .select("id")
+    .select("id, assignment_start, assignment_end")
     .eq("id", groupId)
     .single();
 
@@ -368,6 +387,24 @@ export async function updateManualGroup(
   if (!validation.ok) {
     return {
       error: validation.error,
+    };
+  }
+
+  const assignmentRange = persistableAssignmentRange(
+    {
+      preference: validation.value.preference,
+      assignmentStart: input.assignmentStart,
+      assignmentEnd: input.assignmentEnd,
+    },
+    {
+      assignmentStart: existingGroup.assignment_start,
+      assignmentEnd: existingGroup.assignment_end,
+    },
+  );
+
+  if (!assignmentRange.ok) {
+    return {
+      error: assignmentRange.error,
     };
   }
 
@@ -469,10 +506,10 @@ export async function updateManualGroup(
     }
 
     const existingUsageResult =
-      await loadExistingRoomUsage(
-        supabase,
-        groupId,
-      );
+      await loadExistingRoomUsage(supabase, groupId, {
+        assignmentStart: assignmentRange.assignmentStart,
+        assignmentEnd: assignmentRange.assignmentEnd,
+      });
 
     if ("error" in existingUsageResult) {
       return existingUsageResult;
@@ -604,6 +641,8 @@ export async function updateManualGroup(
         validation.value.preference === "in_person"
           ? manualRoomOverbooked
           : false,
+      assignment_start: assignmentRange.assignmentStart,
+      assignment_end: assignmentRange.assignmentEnd,
     })
     .eq("id", groupId);
 

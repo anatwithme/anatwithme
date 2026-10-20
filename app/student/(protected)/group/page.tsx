@@ -195,6 +195,8 @@ export default async function GroupPage() {
       meet_end_time,
       room_id,
       room_overbooked,
+      assignment_start,
+      assignment_end,
       room (
         building,
         room_number

@@ -122,4 +122,6 @@ export type ExistingScheduledGroupRow = {
   room_id: number | null;
   day_of_week: number | null;
   meet_start_time: string | null;
+  assignment_start?: string | null;
+  assignment_end?: string | null;
 };
