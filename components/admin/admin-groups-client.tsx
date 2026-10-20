@@ -104,6 +104,8 @@ type Group = {
     | null;
   created_at: string;
   member_of: GroupMember[];
+  assignment_start?: string | null;
+  assignment_end?: string | null;
 };
 
 type FlaggedStudent = {
@@ -165,6 +167,8 @@ type CreateGroupFormState = {
   studentIds: string[];
   groupName: string;
   roomId?: number | null;
+  assignmentStart: string;
+  assignmentEnd: string;
 };
 
 type StudentSelectOption = UngroupedStudent & {
@@ -293,6 +297,8 @@ function getDefaultCreateFormState(): CreateGroupFormState {
     studentIds: [],
     groupName: "",
     roomId: null,
+    assignmentStart: "",
+    assignmentEnd: "",
   };
 }
 
@@ -465,6 +471,17 @@ export default function AdminGroupsClient({
     setEditForm(getDefaultCreateFormState());
   }
 
+  function formatDateTimeLocal(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const localDate = new Date(
+      date.getTime() - date.getTimezoneOffset() * 60_000
+    );
+
+    return localDate.toISOString().slice(0, 16);
+  }
+
   function openEditGroupDialog(group: Group) {
     setEditWarnings([]);
     setEditingGroup(group);
@@ -475,7 +492,13 @@ export default function AdminGroupsClient({
       groupName: group.group_name ?? "",
       studentIds: group.member_of.map((member) => member.user_id),
       roomId: group.room_id ?? null,
-    });
+      assignmentStart: group.assignment_start
+        ? formatDateTimeLocal(group.assignment_start)
+        : "",
+      assignmentEnd: group.assignment_end
+        ? formatDateTimeLocal(group.assignment_end)
+        : "",
+          });
     setEditGroupOpen(true);
   }
 
@@ -601,6 +624,21 @@ export default function AdminGroupsClient({
       toast.error("Choose a group to edit first.");
       return;
     }
+    if (editForm.preference === "in_person") {
+      const { assignmentStart, assignmentEnd } = editForm;
+
+      if (assignmentStart || assignmentEnd) {
+        if (!assignmentStart || !assignmentEnd) {
+          toast.error("Please enter both assignment dates.");
+          return;
+        }
+
+        if (new Date(assignmentEnd) <= new Date(assignmentStart)) {
+          toast.error("Assignment end must be after assignment start.");
+          return;
+        }
+      }
+    }
 
     setUpdatingGroup(true);
 
@@ -613,6 +651,14 @@ export default function AdminGroupsClient({
         groupName: editForm.groupName,
         studentIds: editForm.studentIds,
         roomId: editForm.preference === "in_person" ? editForm.roomId : null,
+        assignmentStart:
+          editForm.preference === "in_person"
+            ? editForm.assignmentStart || null
+            : null,
+        assignmentEnd:
+          editForm.preference === "in_person"
+            ? editForm.assignmentEnd || null
+            : null,
         overrideWarnings,
       });
 
@@ -1031,6 +1077,43 @@ export default function AdminGroupsClient({
             </p>
           </div>
         ) : null}
+
+        {editForm.preference === "in_person" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="assignment-start">Assignment start</Label>
+              <Input
+                id="assignment-start"
+                type="datetime-local"
+                value={editForm.assignmentStart}
+                disabled={updatingGroup}
+                onChange={(event) =>
+                  setEditForm((current) => ({
+                    ...current,
+                    assignmentStart: event.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="assignment-end">Assignment end</Label>
+              <Input
+                id="assignment-end"
+                type="datetime-local"
+                min={editForm.assignmentStart || undefined}
+                value={editForm.assignmentEnd}
+                disabled={updatingGroup}
+                onChange={(event) =>
+                  setEditForm((current) => ({
+                    ...current,
+                    assignmentEnd: event.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+        )}
 
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
           <p className="font-medium">Meeting preview</p>
