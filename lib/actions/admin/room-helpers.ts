@@ -1,3 +1,5 @@
+import { assignmentRangesOverlap } from "@/lib/assignment-range";
+
 import {
   type ExistingRoomUsage,
   type RoomAssignmentCandidate,
@@ -83,13 +85,17 @@ export async function loadRoomInventory(
 export async function loadExistingRoomUsage(
   supabase: SupabaseClient,
   excludeGroupId?: string,
+  candidateRange?: {
+    assignmentStart: string | null;
+    assignmentEnd: string | null;
+  },
 ): Promise<
   { usage: ExistingRoomUsage[] } | { error: string }
 > {
   const { data, error } = await supabase
     .from("group")
     .select(
-      "id, room_id, day_of_week, meet_start_time",
+      "id, room_id, day_of_week, meet_start_time, assignment_start, assignment_end",
     )
     .eq("preference", "in_person");
 
@@ -118,7 +124,13 @@ export async function loadExistingRoomUsage(
           group.day_of_week !== null &&
           group.meet_start_time !== null &&
           group.day_of_week >= 0 &&
-          group.day_of_week <= 4,
+          group.day_of_week <= 4 &&
+          assignmentRangesOverlap(
+            group.assignment_start,
+            group.assignment_end,
+            candidateRange?.assignmentStart,
+            candidateRange?.assignmentEnd,
+          ),
       )
       .map((group) => ({
         roomId: group.room_id,

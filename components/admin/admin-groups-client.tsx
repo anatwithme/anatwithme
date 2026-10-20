@@ -90,6 +90,8 @@ type Group = {
   meet_end_time: string;
   room_id?: number | null;
   room_overbooked?: boolean;
+  assignment_start?: string | null;
+  assignment_end?: string | null;
   room?:
     | {
         id?: number;

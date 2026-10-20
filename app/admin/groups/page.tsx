@@ -41,6 +41,8 @@ export default async function AdminGroupsPage() {
       meet_end_time,
       room_id,
       room_overbooked,
+      assignment_start,
+      assignment_end,
       created_at,
       room (
         id,

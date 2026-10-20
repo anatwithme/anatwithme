@@ -123,7 +123,27 @@ create table public."group" (
   meet_end_time time not null,
   created_at timestamptz not null default now(),
   room_id bigint references public.room(id) on delete set null,
-  room_overbooked boolean not null default false
+  room_overbooked boolean not null default false,
+  assignment_start timestamptz,
+  assignment_end timestamptz,
+  constraint group_assignment_range_check check (
+    (
+      assignment_start is null
+      and assignment_end is null
+    )
+    or (
+      assignment_start is not null
+      and assignment_end is not null
+      and assignment_end > assignment_start
+    )
+  ),
+  constraint group_online_assignment_clear_check check (
+    preference is distinct from 'online'
+    or (
+      assignment_start is null
+      and assignment_end is null
+    )
+  )
 );
 
 create table public.member_of (

@@ -13,6 +13,8 @@ export type ManualGroupInput = ManualGroupFormInput & {
   studentIds: string[];
   roomId?: number | null;
   overrideWarnings?: boolean;
+  assignmentStart?: string | null;
+  assignmentEnd?: string | null;
 };
 
 export type AssignStudentInput = {

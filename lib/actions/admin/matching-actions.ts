@@ -257,6 +257,8 @@ export async function runMatchingAction(
           room_id: roomAssignment.roomId,
           room_overbooked:
             roomAssignment.overbooked,
+          assignment_start: null,
+          assignment_end: null,
         })
         .select("id")
         .single();
