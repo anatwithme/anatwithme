@@ -43,6 +43,7 @@ console.log("========================================\n");
 
 test("accepts valid 1-hour manual group input", () => {
   const result = validateManualGroupInput({
+    groupName: "QA valid group",
     dayOfWeek: 2,
     meetStartTime: "10:00:00",
     meetEndTime: "11:00:00",
@@ -54,6 +55,7 @@ test("accepts valid 1-hour manual group input", () => {
 
 test("rejects manual groups that are not exactly 1 hour", () => {
   const result = validateManualGroupInput({
+    groupName: "QA invalid duration group",
     dayOfWeek: 2,
     meetStartTime: "10:00:00",
     meetEndTime: "12:00:00",
@@ -65,6 +67,7 @@ test("rejects manual groups that are not exactly 1 hour", () => {
 
 test("rejects manual groups outside the supported meeting window", () => {
   const result = validateManualGroupInput({
+    groupName: "QA out-of-window group",
     dayOfWeek: 4,
     meetStartTime: "06:00:00",
     meetEndTime: "07:00:00",
@@ -144,5 +147,6 @@ if (failed === 0) {
   console.log("  All tests passed!");
 } else {
   console.log(`  ${failed} test(s) need attention.`);
+  process.exitCode = 1;
 }
 console.log("========================================\n");
