@@ -23,6 +23,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -320,83 +327,88 @@ export default function AdminProgressClient({
         ) : null}
       </Card>
 
-      {isConfirmOpen ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Confirm semester rollover"
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded-lg border bg-background shadow-xl"
-          >
-            <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Confirm semester rollover</h2>
-                <p className="text-sm text-muted-foreground">
-                  Review the exact domains below. This cannot be undone.
-                </p>
-              </div>
+      <Dialog
+        open={isConfirmOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !isPending) setIsConfirmOpen(false);
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          onEscapeKeyDown={(event) => {
+            if (isPending) event.preventDefault();
+          }}
+          onInteractOutside={(event) => event.preventDefault()}
+          className="flex max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl"
+        >
+          <DialogHeader className="flex-row items-start justify-between gap-4 border-b px-5 py-4">
+            <div className="space-y-1">
+              <DialogTitle>Confirm semester rollover</DialogTitle>
+              <DialogDescription>
+                Review the exact domains below. This cannot be undone.
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setIsConfirmOpen(false)}
+              disabled={isPending}
+            >
+              <span className="sr-only">Close</span>
+              <X className="size-4" />
+            </Button>
+          </DialogHeader>
+
+          <div className="space-y-5 px-5 py-4">
+            <div className="rounded-md border bg-muted/30 p-4">
+              <p className="text-sm font-medium">The rollover will clear:</p>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                {selectedDescriptions.map((description) => (
+                  <li key={description}>{description}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="rollover-confirm">
+                Type {`"${ROLLOVER_CONFIRMATION_PHRASE}"`} to enable the final
+                rollover
+              </label>
+              <Input
+                id="rollover-confirm"
+                value={confirmationText}
+                onChange={(event) => setConfirmationText(event.target.value)}
+                placeholder={ROLLOVER_CONFIRMATION_PHRASE}
+                disabled={isPending}
+              />
+            </div>
+
+            {rolloverResult && "error" in rolloverResult ? (
+              <RolloverResultBanner result={rolloverResult} />
+            ) : null}
+
+            <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
                 onClick={() => setIsConfirmOpen(false)}
                 disabled={isPending}
               >
-                <span className="sr-only">Close</span>
-                <X className="size-4" />
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!canSubmitRollover || isPending}
+                onClick={handleRunRollover}
+              >
+                {isPending ? "Running rollover..." : "Run semester rollover"}
               </Button>
             </div>
-
-            <div className="space-y-5 px-5 py-4">
-              <div className="rounded-md border bg-muted/30 p-4">
-                <p className="text-sm font-medium">The rollover will clear:</p>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                  {selectedDescriptions.map((description) => (
-                    <li key={description}>{description}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="rollover-confirm">
-                  Type {`"${ROLLOVER_CONFIRMATION_PHRASE}"`} to enable the final
-                  rollover
-                </label>
-                <Input
-                  id="rollover-confirm"
-                  value={confirmationText}
-                  onChange={(event) => setConfirmationText(event.target.value)}
-                  placeholder={ROLLOVER_CONFIRMATION_PHRASE}
-                  disabled={isPending}
-                />
-              </div>
-
-              {rolloverResult && "error" in rolloverResult ? (
-                <RolloverResultBanner result={rolloverResult} />
-              ) : null}
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setIsConfirmOpen(false)}
-                  disabled={isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={!canSubmitRollover || isPending}
-                  onClick={handleRunRollover}
-                >
-                  {isPending ? "Running rollover..." : "Run semester rollover"}
-                </Button>
-              </div>
-            </div>
           </div>
-        </div>
-      ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
