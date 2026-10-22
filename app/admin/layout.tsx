@@ -9,8 +9,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen flex flex-col">
-      <nav className="w-full h-16 flex items-center">
+    <div className="min-h-screen flex flex-col">
+      <header className="w-full h-16 flex items-center">
         <AppBrand />
         <div className="ml-auto flex items-center gap-4">
           <AdminNavbar />
@@ -18,9 +18,9 @@ export default function AdminLayout({
             <AuthButton />
           </Suspense>
         </div>
-      </nav>
+      </header>
 
-      <div className="flex-1 flex justify-center py-6">{children}</div>
-    </main>
+      <main className="flex-1 flex justify-center py-6">{children}</main>
+    </div>
   );
 }
