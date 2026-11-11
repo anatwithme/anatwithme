@@ -6,9 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -83,49 +81,69 @@ export function StudentAvailabilityDialog({
         </DialogHeader>
 
         <div className="w-full overflow-x-auto">
-          <div className="min-w-[820px]">
-            <div className="grid grid-cols-[72px_repeat(7,minmax(90px,1fr))] mb-1">
-              <div />
-              {DAYS.map((day) => (
-                <div
-                  key={day}
-                  className="text-center text-xs font-medium text-muted-foreground pb-1 whitespace-nowrap"
+          <table className="w-full min-w-[820px] table-fixed border-collapse">
+            <caption className="sr-only">
+              {studentName}&apos;s weekly availability. Days are columns and times are rows.
+              Each cell states whether the student is available.
+            </caption>
+            <thead>
+              <tr>
+                <th
+                  scope="col"
+                  className="h-8 w-[72px] pr-2 text-right text-xs font-medium text-muted-foreground"
                 >
-                  {day}
-                </div>
+                  Time
+                </th>
+                {DAYS.map((day) => (
+                  <th
+                    key={day}
+                    scope="col"
+                    className="h-8 pb-1 text-center text-xs font-medium text-muted-foreground whitespace-nowrap"
+                  >
+                    {day}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {TIME_LABELS.map((label, slotPosition) => (
+                <tr key={slotPosition}>
+                  <th
+                    scope="row"
+                    className="h-8 pr-2 text-right text-xs font-normal text-muted-foreground whitespace-nowrap"
+                  >
+                    {label}
+                  </th>
+
+                  {DAYS.map((dayLabel, day) => {
+                    const slotId = slotLookup[`${day}-${slotPosition}`];
+                    const isSelected = selected.has(slotId);
+
+                    return (
+                      <td
+                        key={dayLabel}
+                        className={cn(
+                          "h-8 border border-border text-center text-xs font-medium",
+                          isSelected
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card text-muted-foreground",
+                        )}
+                      >
+                        <span aria-hidden="true">{isSelected ? "✓" : "—"}</span>
+                        <span className="sr-only">
+                          {isSelected ? "Available" : "Not available"}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
               ))}
-            </div>
-
-            {TIME_LABELS.map((label, slotPosition) => (
-              <div
-                key={slotPosition}
-                className="grid grid-cols-[72px_repeat(7,minmax(90px,1fr))]"
-              >
-                <div className="flex h-8 items-center justify-end pr-2 text-xs text-muted-foreground whitespace-nowrap">
-                  {label}
-                </div>
-
-                {DAYS.map((_, day) => {
-                  const slotId = slotLookup[`${day}-${slotPosition}`];
-                  const isSelected = selected.has(slotId);
-
-                  return (
-                    <div
-                      key={day}
-                      className={cn(
-                        "h-8 border border-border",
-                        isSelected ? "bg-primary" : "bg-card",
-                      )}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+            </tbody>
+          </table>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Highlighted cells are times this student marked as available.
+          Check marks show times this student marked as available; dashes show unavailable times.
         </p>
       </DialogContent>
     </Dialog>
