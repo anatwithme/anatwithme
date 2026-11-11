@@ -65,6 +65,7 @@ import {
 } from "@/lib/group-management";
 import {
   clampMeetingSchedule,
+  meetingEndTime,
   startTimesForPreference,
   weekdaysForPreference,
 } from "@/lib/scheduling-window";
@@ -168,6 +169,7 @@ type RoomOption = {
 type CreateGroupFormState = {
   dayOfWeek: number;
   meetStartTime: string;
+  meetEndTime: string;
   preference: GroupPreference;
   studentIds: string[];
   groupName: string;
@@ -280,12 +282,6 @@ function getInitials(name: string | null) {
     .join("");
 }
 
-function getEndTimeFromStart(meetStartTime: string) {
-  const [hourString] = meetStartTime.split(":");
-  const hour = Number.parseInt(hourString, 10);
-  return `${String(hour + 1).padStart(2, "0")}:00:00`;
-}
-
 function getInputTimeValue(timeString: string) {
   return timeString.slice(0, 5);
 }
@@ -322,6 +318,7 @@ function getDefaultCreateFormState(): CreateGroupFormState {
   return {
     dayOfWeek: 0,
     meetStartTime: `${GROUP_TIME_OPTIONS[0]}:00`,
+    meetEndTime: meetingEndTime(`${GROUP_TIME_OPTIONS[0]}:00`),
     preference: "in_person",
     studentIds: [],
     groupName: "",
@@ -414,13 +411,13 @@ export default function AdminGroupsClient({
   const createMeeting = {
     dayOfWeek: createForm.dayOfWeek,
     meetStartTime: createForm.meetStartTime,
-    meetEndTime: getEndTimeFromStart(createForm.meetStartTime),
+    meetEndTime: createForm.meetEndTime,
     preference: createForm.preference,
   };
   const editMeeting = {
     dayOfWeek: editForm.dayOfWeek,
     meetStartTime: editForm.meetStartTime,
-    meetEndTime: getEndTimeFromStart(editForm.meetStartTime),
+    meetEndTime: editForm.meetEndTime,
     preference: editForm.preference,
   };
   const createScheduleChoices = scheduleChoices(
@@ -527,6 +524,7 @@ export default function AdminGroupsClient({
     setEditForm({
       dayOfWeek: group.day_of_week ?? 0,
       meetStartTime: group.meet_start_time,
+      meetEndTime: group.meet_end_time || meetingEndTime(group.meet_start_time),
       preference: (group.preference ?? "in_person") as GroupPreference,
       groupName: group.group_name ?? "",
       studentIds: group.member_of.map((member) => member.user_id),
@@ -849,10 +847,12 @@ export default function AdminGroupsClient({
               value={getInputTimeValue(createForm.meetStartTime)}
               disabled={creatingGroup}
               onChange={(event) => {
+                const meetStartTime = `${event.target.value}:00`;
                 setCreateWarnings([]);
                 setCreateForm((current) => ({
                   ...current,
-                  meetStartTime: `${event.target.value}:00`,
+                  meetStartTime,
+                  meetEndTime: meetingEndTime(meetStartTime),
                 }));
               }}
             >
@@ -1047,10 +1047,12 @@ export default function AdminGroupsClient({
               value={getInputTimeValue(editForm.meetStartTime)}
               disabled={updatingGroup}
               onChange={(event) => {
+                const meetStartTime = `${event.target.value}:00`;
                 setEditWarnings([]);
                 setEditForm((current) => ({
                   ...current,
-                  meetStartTime: `${event.target.value}:00`,
+                  meetStartTime,
+                  meetEndTime: meetingEndTime(meetStartTime),
                 }));
               }}
             >

@@ -78,17 +78,28 @@ export function isSlotAllowedForPreference(
   return isStartAllowedForPreference(day, DAY_START_HOUR + position, preference);
 }
 
+export function meetingEndTime(meetStartTime: string): string {
+  const hour = Number.parseInt(meetStartTime.slice(0, 2), 10);
+  if (!Number.isInteger(hour)) {
+    return meetStartTime;
+  }
+
+  return `${String(hour + 1).padStart(2, "0")}:00:00`;
+}
+
 export function clampMeetingSchedule(
   dayOfWeek: number,
   meetStartTime: string,
   preference: ScheduledPreference,
-): { dayOfWeek: number; meetStartTime: string } {
+): { dayOfWeek: number; meetStartTime: string; meetEndTime: string } {
   const days = weekdaysForPreference(preference);
   const times = startTimesForPreference(preference);
   const currentTime = meetStartTime.slice(0, 5);
+  const nextStartTime = `${times.includes(currentTime) ? currentTime : times[times.length - 1]}:00`;
 
   return {
     dayOfWeek: days.includes(dayOfWeek) ? dayOfWeek : days[0],
-    meetStartTime: `${times.includes(currentTime) ? currentTime : times[times.length - 1]}:00`,
+    meetStartTime: nextStartTime,
+    meetEndTime: meetingEndTime(nextStartTime),
   };
 }

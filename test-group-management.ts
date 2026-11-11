@@ -221,6 +221,16 @@ test("moves an out-of-window meeting back into the in-person schedule", () => {
   const clamped = clampMeetingSchedule(5, "22:00:00", "in_person");
   assert(clamped.dayOfWeek === 0, "Expected Saturday to move to Monday");
   assert(clamped.meetStartTime === "19:00:00", "Expected 10 PM to move to 7 PM");
+  assert(
+    clamped.meetEndTime === "20:00:00",
+    "Expected the end time to move with the start and stay one hour long",
+  );
+});
+
+test("keeps a one-hour end time when a preference switch does not change the start", () => {
+  const clamped = clampMeetingSchedule(0, "10:00:00", "online");
+  assert(clamped.meetStartTime === "10:00:00", "Expected 10 AM to stay in the online window");
+  assert(clamped.meetEndTime === "11:00:00", "Expected the meeting to stay one hour long");
 });
 
 test("returns no warning when the student matches the group", () => {
