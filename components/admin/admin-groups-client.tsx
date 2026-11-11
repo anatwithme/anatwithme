@@ -57,6 +57,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DAY_NAMES,
   getMeetingLabel,
   GROUP_TIME_OPTIONS,
@@ -2096,32 +2103,32 @@ function ManagementDialog({
   onClose: () => void;
   children: ReactNode;
 }) {
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded-lg border bg-background shadow-xl"
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        onInteractOutside={(event) => event.preventDefault()}
+        className="flex max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
-        <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
+        <DialogHeader className="flex-row items-start justify-between gap-4 border-b px-5 py-4">
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{title}</h2>
-            <p className="text-muted-foreground text-sm">{description}</p>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
           </div>
           <Button type="button" variant="ghost" size="icon-sm" onClick={onClose}>
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </Button>
-        </div>
+        </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto px-5 py-4">{children}</div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
