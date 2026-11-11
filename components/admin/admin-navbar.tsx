@@ -35,43 +35,50 @@ export function AdminNavbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex items-center gap-3">
+    <nav aria-label="Admin navigation" className="flex items-center gap-3">
       <Button asChild variant="outline" size="sm">
         <Link href="/student">Student view</Link>
       </Button>
       <div className="relative">
         <div className="hidden md:flex items-center gap-1">
-        {tabs.map(({ label, href, icon: Icon }) => {
-          const isActive =
-            pathname === href || pathname.startsWith(href + "/");
+          {tabs.map(({ label, href, icon: Icon }) => {
+            const isActive =
+              pathname === href || pathname.startsWith(href + "/");
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-accent text-foreground"
-                  : "text-foreground hover:bg-accent/50"
-              )}
-            >
-              <Icon className="size-4" />
-              {label}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-accent text-foreground"
+                    : "text-foreground hover:bg-accent/50"
+                )}
+              >
+                <Icon className="size-4" />
+                {label}
+              </Link>
+            );
+          })}
         </div>
         <div className="md:hidden">
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 rounded-md px-3 py-2 border"
-        >
-          <Menu className="size-5" />
-          Menu
-        </button>
-        {open && (
-          <div className="absolute mt-2 w-48 rounded-md border bg-background shadow-lg z-50">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls="admin-mobile-navigation"
+            onClick={() => setOpen(!open)}
+            className="flex items-center gap-2 rounded-md px-3 py-2 border"
+          >
+            <Menu className="size-5" />
+            Menu
+          </button>
+          <div
+            id="admin-mobile-navigation"
+            hidden={!open}
+            className="absolute mt-2 w-48 rounded-md border bg-background shadow-lg z-50"
+          >
             {tabs.map(({ label, href, icon: Icon }) => {
               const isActive =
                 pathname === href || pathname.startsWith(href + "/");
@@ -81,6 +88,7 @@ export function AdminNavbar() {
                   key={href}
                   href={href}
                   onClick={() => setOpen(false)}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 text-sm",
                     isActive
@@ -94,9 +102,8 @@ export function AdminNavbar() {
               );
             })}
           </div>
-        )}
         </div>
       </div>
-    </div>
+    </nav>
   );
 }
