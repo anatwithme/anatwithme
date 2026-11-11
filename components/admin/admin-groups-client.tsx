@@ -63,6 +63,11 @@ import {
   type CompatibilityWarning,
   type GroupPreference,
 } from "@/lib/group-management";
+import {
+  clampMeetingSchedule,
+  startTimesForPreference,
+  weekdaysForPreference,
+} from "@/lib/scheduling-window";
 import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -289,6 +294,30 @@ function formatManualPreference(preference: GroupPreference) {
   return preference === "in_person" ? "In-person" : "Online";
 }
 
+function scheduleHint(preference: GroupPreference) {
+  return preference === "in_person"
+    ? "In-person groups meet Monday–Friday, 7:00 AM–7:00 PM."
+    : "Online groups can meet any day, 7:00 AM–10:00 PM.";
+}
+
+function scheduleChoices(
+  preference: GroupPreference,
+  dayOfWeek: number,
+  meetStartTime: string,
+) {
+  const days = weekdaysForPreference(preference);
+  const times = startTimesForPreference(preference);
+  const currentTime = meetStartTime.slice(0, 5);
+  const dayChoices = days.includes(dayOfWeek)
+    ? days
+    : [...days, dayOfWeek].sort((left, right) => left - right);
+  const timeChoices = times.includes(currentTime)
+    ? times
+    : [...times, currentTime].sort();
+
+  return { dayChoices, timeChoices };
+}
+
 function getDefaultCreateFormState(): CreateGroupFormState {
   return {
     dayOfWeek: 0,
@@ -394,6 +423,16 @@ export default function AdminGroupsClient({
     meetEndTime: getEndTimeFromStart(editForm.meetStartTime),
     preference: editForm.preference,
   };
+  const createScheduleChoices = scheduleChoices(
+    createForm.preference,
+    createForm.dayOfWeek,
+    createForm.meetStartTime,
+  );
+  const editScheduleChoices = scheduleChoices(
+    editForm.preference,
+    editForm.dayOfWeek,
+    editForm.meetStartTime,
+  );
   const selectedAssignGroup =
     groups.find((group) => group.id === assignGroupId) ?? groups[0] ?? null;
 
@@ -794,9 +833,9 @@ export default function AdminGroupsClient({
                 }));
               }}
             >
-              {DAY_NAMES.map((dayName, index) => (
-                <option key={dayName} value={index}>
-                  {dayName}
+              {createScheduleChoices.dayChoices.map((index) => (
+                <option key={DAY_NAMES[index] ?? index} value={index}>
+                  {DAY_NAMES[index] ?? "Unknown day"}
                 </option>
               ))}
             </select>
@@ -817,7 +856,7 @@ export default function AdminGroupsClient({
                 }));
               }}
             >
-              {GROUP_TIME_OPTIONS.map((time) => (
+              {createScheduleChoices.timeChoices.map((time) => (
                 <option key={time} value={time}>
                   {time}
                 </option>
@@ -844,10 +883,16 @@ export default function AdminGroupsClient({
             value={createForm.preference}
             disabled={creatingGroup}
             onChange={(event) => {
+              const preference = event.target.value as GroupPreference;
               setCreateWarnings([]);
               setCreateForm((current) => ({
                 ...current,
-                preference: event.target.value as GroupPreference,
+                ...clampMeetingSchedule(
+                  current.dayOfWeek,
+                  current.meetStartTime,
+                  preference,
+                ),
+                preference,
               }));
             }}
           >
@@ -862,6 +907,7 @@ export default function AdminGroupsClient({
             {getMeetingLabel(createMeeting)} •{" "}
             {formatManualPreference(createMeeting.preference)}
           </p>
+          <p className="text-muted-foreground">{scheduleHint(createForm.preference)}</p>
         </div>
 
         <div className="space-y-2">
@@ -985,9 +1031,9 @@ export default function AdminGroupsClient({
                 }));
               }}
             >
-              {DAY_NAMES.map((dayName, index) => (
-                <option key={dayName} value={index}>
-                  {dayName}
+              {editScheduleChoices.dayChoices.map((index) => (
+                <option key={DAY_NAMES[index] ?? index} value={index}>
+                  {DAY_NAMES[index] ?? "Unknown day"}
                 </option>
               ))}
             </select>
@@ -1008,7 +1054,7 @@ export default function AdminGroupsClient({
                 }));
               }}
             >
-              {GROUP_TIME_OPTIONS.map((time) => (
+              {editScheduleChoices.timeChoices.map((time) => (
                 <option key={time} value={time}>
                   {time}
                 </option>
@@ -1039,6 +1085,11 @@ export default function AdminGroupsClient({
               setEditWarnings([]);
               setEditForm((current) => ({
                 ...current,
+                ...clampMeetingSchedule(
+                  current.dayOfWeek,
+                  current.meetStartTime,
+                  nextPreference,
+                ),
                 preference: nextPreference,
                 roomId: nextPreference === "online" ? null : current.roomId,
               }));
@@ -1120,6 +1171,7 @@ export default function AdminGroupsClient({
           <p className="text-muted-foreground">
             {getMeetingLabel(editMeeting)} • {formatManualPreference(editMeeting.preference)}
           </p>
+          <p className="text-muted-foreground">{scheduleHint(editForm.preference)}</p>
         </div>
 
         <div className="space-y-2">

@@ -1,3 +1,10 @@
+import {
+  IN_PERSON_SCHEDULE_ERROR,
+  isStartAllowedForPreference,
+  ONLINE_SCHEDULE_ERROR,
+  startTimesForPreference,
+} from "./scheduling-window";
+
 export type GroupPreference = "in_person" | "online";
 export type StudentPreference = GroupPreference | "no_preference" | null;
 
@@ -44,10 +51,7 @@ export const DAY_NAMES = [
   "Sunday",
 ] as const;
 
-export const GROUP_TIME_OPTIONS = Array.from({ length: 16 }, (_, index) => {
-  const hour = 7 + index;
-  return `${String(hour).padStart(2, "0")}:00`;
-});
+export const GROUP_TIME_OPTIONS = startTimesForPreference("online");
 
 function normalizeTimeString(value: string) {
   const trimmed = value.trim();
@@ -138,17 +142,20 @@ export function validateManualGroupInput(input: ManualGroupFormInput) {
     };
   }
 
-  if (startHour < 7 || startHour > 22 || endHour < 8 || endHour > 23) {
-    return {
-      ok: false as const,
-      error: "Manual groups must use the supported 7:00 AM to 11:00 PM schedule.",
-    };
-  }
-
   if (endHour - startHour !== 1) {
     return {
       ok: false as const,
       error: "Manual groups must be exactly 1 hour long.",
+    };
+  }
+
+  if (!isStartAllowedForPreference(input.dayOfWeek, startHour, input.preference)) {
+    return {
+      ok: false as const,
+      error:
+        input.preference === "in_person"
+          ? IN_PERSON_SCHEDULE_ERROR
+          : ONLINE_SCHEDULE_ERROR,
     };
   }
 

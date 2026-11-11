@@ -15,6 +15,13 @@ import {
   getSlotIndexForMeeting,
   validateManualGroupInput,
 } from "./lib/group-management.ts";
+import {
+  IN_PERSON_SCHEDULE_ERROR,
+  ONLINE_SCHEDULE_ERROR,
+  startTimesForPreference,
+  weekdaysForPreference,
+  clampMeetingSchedule,
+} from "./lib/scheduling-window.ts";
 
 let passed = 0;
 let failed = 0;
@@ -122,6 +129,98 @@ test("warns when a student is unavailable for the manual meeting", () => {
     warning.messages.some((message) => message.includes("Availability mismatch")),
     "Expected an availability mismatch warning",
   );
+});
+
+test("rejects an in-person group on Saturday", () => {
+  const result = validateManualGroupInput({
+    groupName: "Weekend in person",
+    dayOfWeek: 5,
+    meetStartTime: "10:00:00",
+    meetEndTime: "11:00:00",
+    preference: "in_person",
+  });
+
+  assert(!result.ok, "Expected a Saturday in-person group to be rejected");
+  if (!result.ok) {
+    assert(result.error === IN_PERSON_SCHEDULE_ERROR, result.error);
+  }
+});
+
+test("rejects an in-person group after 7 PM", () => {
+  const result = validateManualGroupInput({
+    groupName: "Late in person",
+    dayOfWeek: 0,
+    meetStartTime: "20:00:00",
+    meetEndTime: "21:00:00",
+    preference: "in_person",
+  });
+
+  assert(!result.ok, "Expected an 8 PM in-person group to be rejected");
+  if (!result.ok) {
+    assert(result.error === IN_PERSON_SCHEDULE_ERROR, result.error);
+  }
+});
+
+test("accepts an in-person group at Monday 7 PM", () => {
+  const result = validateManualGroupInput({
+    groupName: "Evening in person",
+    dayOfWeek: 0,
+    meetStartTime: "19:00:00",
+    meetEndTime: "20:00:00",
+    preference: "in_person",
+  });
+
+  assert(result.ok, "Expected Monday 7 PM in-person to be allowed");
+});
+
+test("accepts an online group on Sunday at 10 PM", () => {
+  const result = validateManualGroupInput({
+    groupName: "Sunday online",
+    dayOfWeek: 6,
+    meetStartTime: "22:00:00",
+    meetEndTime: "23:00:00",
+    preference: "online",
+  });
+
+  assert(result.ok, "Expected Sunday 10 PM online to be allowed");
+});
+
+test("rejects an online group before 7 AM", () => {
+  const result = validateManualGroupInput({
+    groupName: "Early online",
+    dayOfWeek: 0,
+    meetStartTime: "06:00:00",
+    meetEndTime: "07:00:00",
+    preference: "online",
+  });
+
+  assert(!result.ok, "Expected a 6 AM online group to be rejected");
+  if (!result.ok) {
+    assert(result.error === ONLINE_SCHEDULE_ERROR, result.error);
+  }
+});
+
+test("limits in-person schedule choices to weekdays through 7 PM", () => {
+  assert(
+    JSON.stringify(weekdaysForPreference("in_person")) === JSON.stringify([0, 1, 2, 3, 4]),
+    "Expected Monday through Friday",
+  );
+  const times = startTimesForPreference("in_person");
+  assert(times[0] === "07:00", "Expected the first in-person time to be 7:00 AM");
+  assert(times[times.length - 1] === "19:00", "Expected the last in-person time to be 7:00 PM");
+  assert(!times.includes("20:00"), "Expected 8:00 PM to be excluded");
+});
+
+test("keeps online schedule choices on every day through 10 PM", () => {
+  assert(weekdaysForPreference("online").length === 7, "Expected all 7 days");
+  const times = startTimesForPreference("online");
+  assert(times[times.length - 1] === "22:00", "Expected the last online time to be 10:00 PM");
+});
+
+test("moves an out-of-window meeting back into the in-person schedule", () => {
+  const clamped = clampMeetingSchedule(5, "22:00:00", "in_person");
+  assert(clamped.dayOfWeek === 0, "Expected Saturday to move to Monday");
+  assert(clamped.meetStartTime === "19:00:00", "Expected 10 PM to move to 7 PM");
 });
 
 test("returns no warning when the student matches the group", () => {

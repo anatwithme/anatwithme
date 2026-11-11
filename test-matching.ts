@@ -29,6 +29,8 @@ const MON = {
   s10am: slot(0, 3),
   s11am: slot(0, 4),
   s2pm: slot(0, 7),
+  s7pm: slot(0, 12),
+  s8pm: slot(0, 13),
   s10pm: slot(0, 15),
 };
 
@@ -41,6 +43,10 @@ const TUE = {
 const WED = {
   s9am: slot(2, 2),
   s10am: slot(2, 3),
+};
+
+const SAT = {
+  s10am: slot(5, 2),
 };
 
 let passed = 0;
@@ -238,15 +244,16 @@ test("flags a student with no overlapping partner", () => {
   assert(result.flagged.length === 2, "Expected both students flagged");
 });
 
-test("last slot of the day is valid for a 1-hour meeting", () => {
+test("last slot of the day is valid for an online 1-hour meeting", () => {
   const students = [
-    makeStudent(1, "Night1", "in_person", [MON.s10pm]),
-    makeStudent(2, "Night2", "in_person", [MON.s10pm]),
+    makeStudent(1, "Night1", "online", [MON.s10pm]),
+    makeStudent(2, "Night2", "online", [MON.s10pm]),
   ];
 
   const result = runMatchingAlgorithm(students);
 
   assert(result.groups.length === 1, "Expected a group at the last slot");
+  assert(result.groups[0].preference === "online", "Expected an online group");
   assert(
     result.groups[0].window.startIndex === MON.s10pm.slot_index,
     "Expected Monday 10pm slot",
@@ -353,7 +360,114 @@ test("adaptive selection does not rely on chronological slot order", () => {
   assert(tuesdayIds.has("3"), "Tuesday-only student 3 should be placed Tuesday");
 });
 
-console.log("\nSection 4: Invariants");
+console.log("\nSection 4: Preference scheduling windows");
+
+test("does not schedule an in-person group at Monday 10pm", () => {
+  const students = [
+    makeStudent(1, "Night1", "in_person", [MON.s10pm]),
+    makeStudent(2, "Night2", "in_person", [MON.s10pm]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 0, "Expected no in-person group after 7pm");
+  assert(result.flagged.length === 2, "Expected both students flagged");
+});
+
+test("schedules an in-person group at the Monday 7pm boundary", () => {
+  const students = [
+    makeStudent(1, "Eve1", "in_person", [MON.s7pm]),
+    makeStudent(2, "Eve2", "in_person", [MON.s7pm]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 1, "Expected an in-person group at 7pm");
+  assert(result.groups[0].preference === "in_person", "Expected an in-person group");
+  assert(
+    result.groups[0].window.startIndex === MON.s7pm.slot_index,
+    "Expected Monday 7pm slot",
+  );
+});
+
+test("does not schedule an in-person group on Saturday", () => {
+  const students = [
+    makeStudent(1, "Sat1", "in_person", [SAT.s10am]),
+    makeStudent(2, "Sat2", "in_person", [SAT.s10am]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 0, "Expected no weekend in-person group");
+  assert(result.flagged.length === 2, "Expected both students flagged");
+});
+
+test("schedules an online group on Saturday morning", () => {
+  const students = [
+    makeStudent(1, "Sat1", "online", [SAT.s10am]),
+    makeStudent(2, "Sat2", "online", [SAT.s10am]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 1, "Expected a Saturday online group");
+  assert(result.groups[0].preference === "online", "Expected an online group");
+  assert(
+    result.groups[0].window.startIndex === SAT.s10am.slot_index,
+    "Expected Saturday 10am slot",
+  );
+});
+
+test("keeps in-person students on an allowed slot when another slot is after 7pm", () => {
+  const students = [
+    makeStudent(1, "Both1", "in_person", [MON.s10am, MON.s8pm]),
+    makeStudent(2, "Both2", "in_person", [MON.s10am, MON.s8pm]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 1, "Expected one in-person group");
+  assert(
+    result.groups[0].window.startIndex === MON.s10am.slot_index,
+    "Expected the Monday 10am slot, not 8pm",
+  );
+  assert(result.flagged.length === 0, "Expected 0 flagged students");
+});
+
+test("forms an online group for no-preference students who are only free on Saturday", () => {
+  const students = [
+    makeStudent(1, "NP1", "no_preference", [SAT.s10am]),
+    makeStudent(2, "NP2", "no_preference", [SAT.s10am]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 1, "Expected one weekend group");
+  assert(result.groups[0].preference === "online", "Expected the weekend group to be online");
+  assert(result.flagged.length === 0, "Expected 0 flagged students");
+});
+
+test("flags in-person-only evening students while online students at that time still group", () => {
+  const students = [
+    makeStudent(1, "IP1", "in_person", [MON.s8pm]),
+    makeStudent(2, "IP2", "in_person", [MON.s8pm]),
+    makeStudent(3, "ON1", "online", [MON.s8pm]),
+    makeStudent(4, "ON2", "online", [MON.s8pm]),
+  ];
+
+  const result = runMatchingAlgorithm(students);
+
+  assert(result.groups.length === 1, "Expected only the online group");
+  assert(result.groups[0].preference === "online", "Expected an online group");
+  assert(result.groups[0].members.length === 2, "Expected the two online students");
+  assert(result.flagged.length === 2, "Expected the in-person students to be flagged");
+  assert(
+    result.flagged.every((student) => student.preference === "in_person"),
+    "Expected only in-person students to be flagged",
+  );
+});
+
+console.log("\nSection 5: Invariants");
 
 test("no student is placed twice and every student is accounted for in a mixed dataset", () => {
   const students = [
