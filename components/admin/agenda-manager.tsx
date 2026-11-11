@@ -904,6 +904,7 @@ export function AgendaManager({ agendas }: { agendas: Agenda[] }) {
                               <TableCell className="w-10 px-4 align-middle text-center">
                                 <input
                                   type="checkbox"
+                                  aria-label={`Enable ${agenda.title}`}
                                   style={{ cursor: "pointer" }}
                                   checked={agenda.enabled ?? true}
                                   disabled={isPending}
