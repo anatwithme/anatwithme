@@ -28,7 +28,7 @@ export default async function AvailabilityPage() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profile")
-    .select("study_mode")
+    .select("study_mode, preference")
     .eq("user_id", user.id)
     .single();
 
@@ -105,6 +105,7 @@ export default async function AvailabilityPage() {
         userId={user.id}
         timeSlots={timeSlots}
         savedSlotIds={savedSlotIds}
+        meetingPreference={profile.preference ?? "no_preference"}
       />
       <InstructionPopup
         studentId={user.id}
