@@ -87,7 +87,7 @@ export function AvailabilityGrid({
         positionInDay >= 0 &&
         positionInDay < 16
       ) {
-        lookup[\`\${dayIndex}-\${positionInDay}\`] = slot.id;
+        lookup[`${dayIndex}-${positionInDay}`] = slot.id;
       } else {
         console.warn(
           "AvailabilityGrid: unable to map time slot",
@@ -103,7 +103,7 @@ export function AvailabilityGrid({
     isStartAllowedForPreference(day, 7 + slotPosition, schedulingPreference);
 
   const handleCellClick = (day: number, slotPosition: number) => {
-    const slotId = slotLookup[\`\${day}-\${slotPosition}\`];
+    const slotId = slotLookup[`${day}-${slotPosition}`];
     if (slotId === undefined) return;
 
     const isCurrentlySelected = selected.has(slotId);
@@ -183,7 +183,7 @@ export function AvailabilityGrid({
 
             {/* one cell per day */}
             {DAYS.map((dayName, day) => {
-              const slotId = slotLookup[\`\${day}-\${slotPosition}\`];
+              const slotId = slotLookup[`${day}-${slotPosition}`];
               const isSelected =
                 slotId !== undefined && selected.has(slotId);
               const isAllowed =
@@ -197,7 +197,7 @@ export function AvailabilityGrid({
                   disabled={!isAllowed && !canRemoveOldSelection}
                   aria-pressed={isSelected}
                   aria-describedby="availability-rules"
-                  aria-label={\`\${dayName}, \${label}: \${isSelected ? "available" : "not available"}\${!isAllowed ? ", outside the allowed range for your meeting preference" : ""}\`}
+                  aria-label={`${dayName}, ${label}: ${isSelected ? "available" : "not available"}${!isAllowed ? ", outside the allowed range for your meeting preference" : ""}`}
                   onClick={() => handleCellClick(day, slotPosition)}
                   className={cn(
                     "h-8 border border-border transition-colors",
