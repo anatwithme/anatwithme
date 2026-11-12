@@ -10,10 +10,14 @@
        then partition quality. This lets scarce students win over chronology.
     5. Build as many balanced groups of 2-6 as possible for the chosen slot.
     6. Strict-preference students are taken first; no_preference students fill.
+    7. In-person groups only use Monday-Friday, 7:00 AM-7:00 PM. Online groups
+       keep any day from 7:00 AM-10:00 PM.
 
   Expects students shaped like:
   [{ user_id, full_name, preference, availability: [{ time_slot_id, slot_index }] }]
 */
+
+import { isSlotAllowedForPreference, SLOTS_PER_DAY } from "./scheduling-window";
 
 export type Preference = "in_person" | "online" | "no_preference";
 export type StrictPreference = Exclude<Preference, "no_preference">;
@@ -82,7 +86,6 @@ type PartitionStats = {
 const MIN_GROUP_SIZE = 2;
 const MAX_GROUP_SIZE = 6;
 const IDEAL_GROUP_SIZE = 5;
-const SLOTS_PER_DAY = 16;
 const PREFERENCES: StrictPreference[] = ["in_person", "online"];
 const partitionCache = new Map<number, number[]>();
 
@@ -119,11 +122,28 @@ export function runMatchingAlgorithm(
   };
 }
 
+function countUsableSlots(student: MatchingStudent): number {
+  return student.availability.filter((slot) => {
+    if (student.preference === "online") {
+      return isSlotAllowedForPreference(slot.slot_index, "online");
+    }
+
+    if (student.preference === "in_person") {
+      return isSlotAllowedForPreference(slot.slot_index, "in_person");
+    }
+
+    return (
+      isSlotAllowedForPreference(slot.slot_index, "in_person") ||
+      isSlotAllowedForPreference(slot.slot_index, "online")
+    );
+  }).length;
+}
+
 function buildMatchingState(students: MatchingStudent[]): MatchingState {
   const annotatedStudents: AnnotatedStudent[] = students.map((student) => ({
     ...student,
     preference: student.preference ?? "no_preference",
-    availabilityCount: student.availability.length,
+    availabilityCount: countUsableSlots(student),
   }));
 
   const unassigned = new Map<string, AnnotatedStudent>();
@@ -191,6 +211,10 @@ function buildCandidate(
   studentsAtSlot: AnnotatedStudent[],
   state: MatchingState,
 ): Candidate | null {
+  if (!isSlotAllowedForPreference(slotIndex, preference)) {
+    return null;
+  }
+
   const strictStudents: AnnotatedStudent[] = [];
   const noPreferenceStudents: AnnotatedStudent[] = [];
 

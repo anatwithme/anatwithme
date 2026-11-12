@@ -70,6 +70,12 @@ import {
   type CompatibilityWarning,
   type GroupPreference,
 } from "@/lib/group-management";
+import {
+  clampMeetingSchedule,
+  meetingEndTime,
+  startTimesForPreference,
+  weekdaysForPreference,
+} from "@/lib/scheduling-window";
 import { StudentAvailabilityDialog } from "@/components/admin/student-availability-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -170,6 +176,7 @@ type RoomOption = {
 type CreateGroupFormState = {
   dayOfWeek: number;
   meetStartTime: string;
+  meetEndTime: string;
   preference: GroupPreference;
   studentIds: string[];
   groupName: string;
@@ -282,12 +289,6 @@ function getInitials(name: string | null) {
     .join("");
 }
 
-function getEndTimeFromStart(meetStartTime: string) {
-  const [hourString] = meetStartTime.split(":");
-  const hour = Number.parseInt(hourString, 10);
-  return `${String(hour + 1).padStart(2, "0")}:00:00`;
-}
-
 function getInputTimeValue(timeString: string) {
   return timeString.slice(0, 5);
 }
@@ -296,10 +297,35 @@ function formatManualPreference(preference: GroupPreference) {
   return preference === "in_person" ? "In-person" : "Online";
 }
 
+function scheduleHint(preference: GroupPreference) {
+  return preference === "in_person"
+    ? "In-person groups meet Monday–Friday, 7:00 AM–7:00 PM."
+    : "Online groups can meet any day, 7:00 AM–10:00 PM.";
+}
+
+function scheduleChoices(
+  preference: GroupPreference,
+  dayOfWeek: number,
+  meetStartTime: string,
+) {
+  const days = weekdaysForPreference(preference);
+  const times = startTimesForPreference(preference);
+  const currentTime = meetStartTime.slice(0, 5);
+  const dayChoices = days.includes(dayOfWeek)
+    ? days
+    : [...days, dayOfWeek].sort((left, right) => left - right);
+  const timeChoices = times.includes(currentTime)
+    ? times
+    : [...times, currentTime].sort();
+
+  return { dayChoices, timeChoices };
+}
+
 function getDefaultCreateFormState(): CreateGroupFormState {
   return {
     dayOfWeek: 0,
     meetStartTime: `${GROUP_TIME_OPTIONS[0]}:00`,
+    meetEndTime: meetingEndTime(`${GROUP_TIME_OPTIONS[0]}:00`),
     preference: "in_person",
     studentIds: [],
     groupName: "",
@@ -392,15 +418,25 @@ export default function AdminGroupsClient({
   const createMeeting = {
     dayOfWeek: createForm.dayOfWeek,
     meetStartTime: createForm.meetStartTime,
-    meetEndTime: getEndTimeFromStart(createForm.meetStartTime),
+    meetEndTime: createForm.meetEndTime,
     preference: createForm.preference,
   };
   const editMeeting = {
     dayOfWeek: editForm.dayOfWeek,
     meetStartTime: editForm.meetStartTime,
-    meetEndTime: getEndTimeFromStart(editForm.meetStartTime),
+    meetEndTime: editForm.meetEndTime,
     preference: editForm.preference,
   };
+  const createScheduleChoices = scheduleChoices(
+    createForm.preference,
+    createForm.dayOfWeek,
+    createForm.meetStartTime,
+  );
+  const editScheduleChoices = scheduleChoices(
+    editForm.preference,
+    editForm.dayOfWeek,
+    editForm.meetStartTime,
+  );
   const selectedAssignGroup =
     groups.find((group) => group.id === assignGroupId) ?? groups[0] ?? null;
 
@@ -495,6 +531,7 @@ export default function AdminGroupsClient({
     setEditForm({
       dayOfWeek: group.day_of_week ?? 0,
       meetStartTime: group.meet_start_time,
+      meetEndTime: group.meet_end_time || meetingEndTime(group.meet_start_time),
       preference: (group.preference ?? "in_person") as GroupPreference,
       groupName: group.group_name ?? "",
       studentIds: group.member_of.map((member) => member.user_id),
@@ -801,9 +838,9 @@ export default function AdminGroupsClient({
                 }));
               }}
             >
-              {DAY_NAMES.map((dayName, index) => (
-                <option key={dayName} value={index}>
-                  {dayName}
+              {createScheduleChoices.dayChoices.map((index) => (
+                <option key={DAY_NAMES[index] ?? index} value={index}>
+                  {DAY_NAMES[index] ?? "Unknown day"}
                 </option>
               ))}
             </select>
@@ -817,14 +854,16 @@ export default function AdminGroupsClient({
               value={getInputTimeValue(createForm.meetStartTime)}
               disabled={creatingGroup}
               onChange={(event) => {
+                const meetStartTime = `${event.target.value}:00`;
                 setCreateWarnings([]);
                 setCreateForm((current) => ({
                   ...current,
-                  meetStartTime: `${event.target.value}:00`,
+                  meetStartTime,
+                  meetEndTime: meetingEndTime(meetStartTime),
                 }));
               }}
             >
-              {GROUP_TIME_OPTIONS.map((time) => (
+              {createScheduleChoices.timeChoices.map((time) => (
                 <option key={time} value={time}>
                   {time}
                 </option>
@@ -851,10 +890,16 @@ export default function AdminGroupsClient({
             value={createForm.preference}
             disabled={creatingGroup}
             onChange={(event) => {
+              const preference = event.target.value as GroupPreference;
               setCreateWarnings([]);
               setCreateForm((current) => ({
                 ...current,
-                preference: event.target.value as GroupPreference,
+                ...clampMeetingSchedule(
+                  current.dayOfWeek,
+                  current.meetStartTime,
+                  preference,
+                ),
+                preference,
               }));
             }}
           >
@@ -869,6 +914,7 @@ export default function AdminGroupsClient({
             {getMeetingLabel(createMeeting)} •{" "}
             {formatManualPreference(createMeeting.preference)}
           </p>
+          <p className="text-muted-foreground">{scheduleHint(createForm.preference)}</p>
         </div>
 
         <div className="space-y-2">
@@ -992,9 +1038,9 @@ export default function AdminGroupsClient({
                 }));
               }}
             >
-              {DAY_NAMES.map((dayName, index) => (
-                <option key={dayName} value={index}>
-                  {dayName}
+              {editScheduleChoices.dayChoices.map((index) => (
+                <option key={DAY_NAMES[index] ?? index} value={index}>
+                  {DAY_NAMES[index] ?? "Unknown day"}
                 </option>
               ))}
             </select>
@@ -1008,14 +1054,16 @@ export default function AdminGroupsClient({
               value={getInputTimeValue(editForm.meetStartTime)}
               disabled={updatingGroup}
               onChange={(event) => {
+                const meetStartTime = `${event.target.value}:00`;
                 setEditWarnings([]);
                 setEditForm((current) => ({
                   ...current,
-                  meetStartTime: `${event.target.value}:00`,
+                  meetStartTime,
+                  meetEndTime: meetingEndTime(meetStartTime),
                 }));
               }}
             >
-              {GROUP_TIME_OPTIONS.map((time) => (
+              {editScheduleChoices.timeChoices.map((time) => (
                 <option key={time} value={time}>
                   {time}
                 </option>
@@ -1046,6 +1094,11 @@ export default function AdminGroupsClient({
               setEditWarnings([]);
               setEditForm((current) => ({
                 ...current,
+                ...clampMeetingSchedule(
+                  current.dayOfWeek,
+                  current.meetStartTime,
+                  nextPreference,
+                ),
                 preference: nextPreference,
                 roomId: nextPreference === "online" ? null : current.roomId,
               }));
@@ -1127,6 +1180,7 @@ export default function AdminGroupsClient({
           <p className="text-muted-foreground">
             {getMeetingLabel(editMeeting)} • {formatManualPreference(editMeeting.preference)}
           </p>
+          <p className="text-muted-foreground">{scheduleHint(editForm.preference)}</p>
         </div>
 
         <div className="space-y-2">
