@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { StudentRosterTable } from "@/components/admin/student-roster-table";
 import { AdminRosterTable } from "@/components/admin/admin-roster-table";
-import { identity } from "lodash";
 
 export default async function RosterPage() {
   const supabase = await createClient();
@@ -83,9 +82,10 @@ export default async function RosterPage() {
 
   return (
     <div className="w-full max-w-7xl space-y-8">
+      <h1 className="text-xl font-semibold">Roster</h1>
       <div className="space-y-2">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-xl font-semibold">Students</h1>
+          <h2 className="text-xl font-semibold">Students</h2>
           <p className="text-muted-foreground text-sm">
             {studentRoster.length} {studentRoster.length === 1 ? "student" : "students"}{" "}
             registered
@@ -96,7 +96,7 @@ export default async function RosterPage() {
 
       <div className="space-y-2">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-xl font-semibold">Administrators</h1>
+          <h2 className="text-xl font-semibold">Administrators</h2>
           <p className="text-muted-foreground text-sm">
             {adminRoster.length} {adminRoster.length === 1 ? "admin" : "admins"}{" "}
             registered
