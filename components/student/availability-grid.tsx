@@ -3,9 +3,10 @@
 // components/student/availability-grid.tsx
 // Interactive weekly availability grid - works like When2Meet
 // Clicking a cell toggles it and immediately saves to the DB
-// Selected (red) = available, unselected = not available
+// Selected (red) = available, unselected (not red) = not available
 
 import { useMemo, useState, useTransition } from "react";
+import { isStartAllowedForPreference } from "@/lib/scheduling-window";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -25,16 +26,26 @@ type TimeSlot = {
   slot_index: number;
 };
 
+type MeetingPreference = "in_person" | "online" | "no_preference";
+
 type Props = {
   userId: string;
   // all 112 time_slot rows from the DB
   timeSlots: TimeSlot[];
   // the slot IDs the student has already saved
   savedSlotIds: number[];
+  meetingPreference: MeetingPreference;
 };
 
-export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
+export function AvailabilityGrid({
+  userId,
+  timeSlots,
+  savedSlotIds,
+  meetingPreference,
+}: Props) {
   const supabase = createClient();
+  const schedulingPreference =
+    meetingPreference === "online" ? "online" : "in_person";
 
   // track which slots are selected - starts from whatever's saved in DB
   const [selected, setSelected] = useState<Set<number>>(
@@ -70,8 +81,13 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
         }
       }
 
-      if (dayIndex >= 0 && dayIndex < 7 && positionInDay >= 0 && positionInDay < 16) {
-        lookup[`${dayIndex}-${positionInDay}`] = slot.id;
+      if (
+        dayIndex >= 0 &&
+        dayIndex < 7 &&
+        positionInDay >= 0 &&
+        positionInDay < 16
+      ) {
+        lookup[\`\${dayIndex}-\${positionInDay}\`] = slot.id;
       } else {
         console.warn(
           "AvailabilityGrid: unable to map time slot",
@@ -83,11 +99,18 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
     return lookup;
   }, [timeSlots]);
 
+  const isAllowedTime = (day: number, slotPosition: number) =>
+    isStartAllowedForPreference(day, 7 + slotPosition, schedulingPreference);
+
   const handleCellClick = (day: number, slotPosition: number) => {
-    const slotId = slotLookup[`${day}-${slotPosition}`];
-    if (!slotId) return;
+    const slotId = slotLookup[\`\${day}-\${slotPosition}\`];
+    if (slotId === undefined) return;
 
     const isCurrentlySelected = selected.has(slotId);
+    const isAllowed = isAllowedTime(day, slotPosition);
+
+    // Allow students to clear old selections that no longer match their preference.
+    if (!isAllowed && !isCurrentlySelected) return;
 
     // optimistic update - toggle immediately so UI feels instant
     setSelected((prev) => {
@@ -113,6 +136,11 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
     });
   };
 
+  const availabilityRules =
+    meetingPreference === "online"
+      ? "Online availability is open every day from 7:00 AM to 10:00 PM."
+      : "In-person and no-preference availability is open Monday through Friday from 7:00 AM to 7:00 PM.";
+
   return (
     <div className="w-full overflow-x-auto">
       {/* subtle indicator so the student knows changes are saving */}
@@ -121,6 +149,11 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
         isPending ? "opacity-100" : "opacity-0"
       )}>
         Saving...
+      </p>
+
+      <p id="availability-rules" className="mb-3 text-sm text-muted-foreground">
+        {availabilityRules} Unavailable times are disabled. If an existing
+        selection is outside this range, click it to remove it.
       </p>
 
       <div className="min-w-[600px]">
@@ -149,26 +182,38 @@ export function AvailabilityGrid({ userId, timeSlots, savedSlotIds }: Props) {
             </div>
 
             {/* one cell per day */}
-            {DAYS.map((_, day) => {
-              const slotId = slotLookup[`${day}-${slotPosition}`];
-              const isSelected = selected.has(slotId);
+            {DAYS.map((dayName, day) => {
+              const slotId = slotLookup[\`\${day}-\${slotPosition}\`];
+              const isSelected =
+                slotId !== undefined && selected.has(slotId);
+              const isAllowed =
+                slotId !== undefined && isAllowedTime(day, slotPosition);
+              const canRemoveOldSelection = isSelected && !isAllowed;
 
               return (
                 <button
-                  style={{ cursor: "pointer" }}
-                  key={day}
+                  key={dayName}
                   type="button"
+                  disabled={!isAllowed && !canRemoveOldSelection}
+                  aria-pressed={isSelected}
+                  aria-describedby="availability-rules"
+                  aria-label={\`\${dayName}, \${label}: \${isSelected ? "available" : "not available"}\${!isAllowed ? ", outside the allowed range for your meeting preference" : ""}\`}
                   onClick={() => handleCellClick(day, slotPosition)}
                   className={cn(
                     "h-8 border border-border transition-colors",
+                    "disabled:cursor-not-allowed",
                     // round the corners on the outer edges of the grid
                     slotPosition === 0 && day === 0 && "rounded-tl-md",
                     slotPosition === 0 && day === 6 && "rounded-tr-md",
                     slotPosition === TIME_LABELS.length - 1 && day === 0 && "rounded-bl-md",
                     slotPosition === TIME_LABELS.length - 1 && day === 6 && "rounded-br-md",
                     isSelected
-                      ? "bg-primary hover:bg-primary/80"
-                      : "bg-card hover:bg-accent"
+                      ? isAllowed
+                        ? "bg-primary hover:bg-primary/80"
+                        : "bg-primary/50 hover:bg-primary/40"
+                      : isAllowed
+                        ? "bg-card hover:bg-accent"
+                        : "bg-muted/50"
                   )}
                 />
               );
