@@ -245,6 +245,7 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                       <TableRow key={exam.id} className="bg-muted/40">
                         <TableCell className="px-4">
                           <Input
+                            aria-label="Exam title"
                             value={editTitle}
                             onChange={(e) => setEditTitle(e.target.value)}
                             className="h-7 text-sm"
@@ -255,6 +256,7 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                         <TableCell className="px-4">
                           <div className="flex gap-2">
                             <Input
+                              aria-label="Exam start date"
                               type="date"
                               value={editStart}
                               onChange={(e) => setEditStart(e.target.value)}
@@ -262,6 +264,7 @@ export function ExamManager({ exams }: { exams: Exam[] }) {
                               disabled={isPending}
                             />
                             <Input
+                              aria-label="Exam end date"
                               type="date"
                               value={editEnd}
                               onChange={(e) => setEditEnd(e.target.value)}
