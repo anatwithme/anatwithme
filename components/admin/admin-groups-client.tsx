@@ -279,6 +279,17 @@ function formatMeetingPreference(
   }
 }
 
+function hasPreferenceMismatch(
+  studentPreference: UngroupedStudent["preference"],
+  groupPreference: GroupPreference,
+) {
+  return (
+    studentPreference !== null &&
+    studentPreference !== "no_preference" &&
+    studentPreference !== groupPreference
+  );
+}
+
 function getInitials(name: string | null) {
   if (!name) return "?";
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -924,6 +935,10 @@ export default function AdminGroupsClient({
               {createForm.studentIds.length} selected
             </span>
           </div>
+          <p className="text-muted-foreground text-xs">
+            Students with a conflicting preference are dimmed and labeled. They
+            remain selectable, and the app will show a warning before saving.
+          </p>
 
           {ungroupedStudents.length === 0 ? (
             <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
@@ -934,10 +949,17 @@ export default function AdminGroupsClient({
             <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
               {ungroupedStudents.map((student) => {
                 const checked = createForm.studentIds.includes(student.user_id);
+                const preferenceMismatch = hasPreferenceMismatch(
+                  student.preference,
+                  createForm.preference,
+                );
                 return (
                   <label
                     key={student.user_id}
-                    className="flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-muted/40"
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-muted/40",
+                      preferenceMismatch && "bg-muted/50 text-muted-foreground",
+                    )}
                   >
                     <input
                       type="checkbox"
@@ -966,6 +988,11 @@ export default function AdminGroupsClient({
                       <p className="text-muted-foreground text-xs">
                         {formatMeetingPreference(student.preference)}
                       </p>
+                      {preferenceMismatch && (
+                        <span className="inline-flex rounded border px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          Preference mismatch
+                        </span>
+                      )}
                     </div>
                   </label>
                 );
@@ -1190,6 +1217,10 @@ export default function AdminGroupsClient({
               {editForm.studentIds.length} selected
             </span>
           </div>
+          <p className="text-muted-foreground text-xs">
+            Students with a conflicting preference are dimmed and labeled. They
+            remain selectable, and the app will show a warning before saving.
+          </p>
 
           {editStudentCandidates.length === 0 ? (
             <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
@@ -1199,10 +1230,17 @@ export default function AdminGroupsClient({
             <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
               {editStudentCandidates.map((student) => {
                 const checked = editForm.studentIds.includes(student.user_id);
+                const preferenceMismatch = hasPreferenceMismatch(
+                  student.preference,
+                  editForm.preference,
+                );
                 return (
                   <label
                     key={student.user_id}
-                    className="flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-muted/40"
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 transition-colors hover:bg-muted/40",
+                      preferenceMismatch && "bg-muted/50 text-muted-foreground",
+                    )}
                   >
                     <input
                       type="checkbox"
@@ -1232,6 +1270,11 @@ export default function AdminGroupsClient({
                       <p className="text-muted-foreground text-xs">
                         {formatMeetingPreference(student.preference)}
                       </p>
+                      {preferenceMismatch && (
+                        <span className="inline-flex rounded border px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          Preference mismatch
+                        </span>
+                      )}
                     </div>
                   </label>
                 );
